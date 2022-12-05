@@ -1,8 +1,6 @@
-### AUTHOR: AHz, LRS, JL 
-### LAST EDIT: 
+### AUTHOR: AHz
 ### WRITTEN IN: R version 4.2.1
-### Purpose: process all demo info 
-### Depends on: UCMR loading and processing.R (for FIPS only)
+### Purpose: Exploratory stuff/proof of concept/feasibility assessment
 
 library(pacman)
 p_load(tidyverse)
