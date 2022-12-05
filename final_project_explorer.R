@@ -201,13 +201,64 @@ tm_shape(epastewardship_county_sf) +
 # EJI :( ####
 ################################################################################
 
+### load csv from CDC site
+eji_data_fromCDC <- read_csv("eji/DataRecords.csv")
 
 
-p_load(geojsonR)
+###  GEOJSONR::
+# p_load(geojsonR)
+# 
+# eji_geojson <- geojsonR::FROM_GeoJson("eji/DataRecords.geojson")
 
-p_load(choroplethr)
-p_load(choroplethrMaps)
 
+### JSONLITE:: 
+p_load(jsonlite)
+
+eji_geojson <- jsonlite::read_json("eji/DataRecords.geojson")
+
+cr <- head(eji_geojson$features) %>% 
+  enframe() %>% 
+  unnest_wider(value) 
+# now what? 
+
+
+bind_rows(head(eji_geojson))
+#nope
+
+# eji_geojson_df <- as.data.frame(eji_geojson)
+
+
+### GEOJSONIO (R graph gallery)
+p_load(geojsonio)
+
+# the r graph gallery told me this would work I can't believe they would play me like this 
+eji_geojson_io <- geojsonio::geojson_read("eji/DataRecords.geojson")
+
+eji_fortified <- broom::tidy(eji_geojson_io)
+#nope
+
+# ggplot() +
+#   geom_polygon(data = eji_fortified, aes( x = long, y = lat, group = group), fill="#69b3a2", color="white") +
+#   theme_void() +
+#   coord_map()
+
+
+### SHP FILE APPROACH
+
+eji <- sf::st_read("eji/eji.shp")
+
+eji_plot <- head(eji, 20) %>% 
+  select(1:location, contains("eji"), geometry) 
+
+st_make_valid(eji_plot$geometry)
+
+
+tm_shape(eji_plot) +   
+  tm_polygons()
+
+
+
+### CENSUS TRACT APPROACH
 p_load(tigris)
 
 census_list <- list()
@@ -218,30 +269,9 @@ for(i in stateabbnamekey$stateabb){
 
 census_tracts <- rbind_tigris(census_list)
 
-tm_shape(census_tracts) + 
+tm_shape(census_tracts) +
   tm_polygons()
 
-# 
-# get_tract_demographics(state_name = "Massachusetts")
-pp <- TractChoropleth$new
-
-eji <- sf::st_read("eji/eji.shp")
-
-eji <- sf::read_sf("eji/eji.shp")
-
-eji <- read_csv("eji/eji.csv")
-
-eji_plot <- st_as_sf(eji, crs=4269)
-
-ca_pts<-st_transform(eji,st_crs(ndvi_ca0519))
-
-tmap_options(check.and.fix = TRUE) 
-
-st_is_valid(eji_plot)
-
-tm_shape(eji_plot) +
-  tm_polygons() +
-  tm_legend(outside = TRUE)
 
 
 
@@ -306,3 +336,33 @@ tm_shape(eji_plot) +
 # #all "NA" state (48)
 # setdiff(MFTA_merge$geography, county14all$geography)
 # #all PR/Guam/Marshall Islands (6)
+
+
+# 
+# p_load(choroplethr)
+# p_load(choroplethrMaps)
+# 
+
+
+# 
+# get_tract_demographics(state_name = "Massachusetts")
+#pp <- TractChoropleth$new
+
+
+
+# eji <- sf::read_sf("eji/eji.shp")
+
+# eji <- read_csv("eji/eji.csv")
+# 
+# eji_plot <- st_as_sf(eji, crs=4269)
+# 
+# ca_pts<-st_transform(eji,st_crs(ndvi_ca0519))
+# 
+# tmap_options(check.and.fix = TRUE) 
+# 
+# st_is_valid(eji_plot)
+# 
+# tm_shape(eji_plot) +
+#   tm_polygons() +
+#   tm_legend(outside = TRUE)
+
