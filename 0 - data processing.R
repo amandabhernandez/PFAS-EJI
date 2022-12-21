@@ -274,7 +274,7 @@ all_ppps_eh249 <- bind_rows(lst(epastewardship_county_sf,
 all_ppps_salvatore <- bind_rows(lst(epastewardship_county_sf, 
                                 fire_sf, airports_sf,
                                 fed_agencies_sf, superfund_sf, 
-                                facilities_salvatore, spills_sf, production_sf), .id = "dataset") 
+                                facilities_sf_salvatore, spills_sf, production_sf), .id = "dataset") 
 
 # nrow(all_ppps_eh249)
 
@@ -388,7 +388,7 @@ ppps_eh249_tract <- all_ppps_eh249 %>%
   sf::st_join(census_tracts_transformed, join = st_intersects)
 
 
-#add naics list, change census pull to match EJI 5yr estimate
+
 
 # tm_shape(census_tracts) +
 #   tm_polygons("RPL_EJI", palette="PuBu", alpha = 0.5) + 
@@ -398,7 +398,7 @@ ppps_eh249_tract <- all_ppps_eh249 %>%
 
 
 #save as RData file so it can be opened in next script 
-save(eji_spatial_tidy, ppps_salvatore_tract, ppps_eh249_tract,
+save(eji_spatial_tidy, ppps_salvatore_tract, ppps_eh249_tract, eji_data_fromCDC,
      file = "census_eji_all_ppps.RData")
 
 ################################################################################
