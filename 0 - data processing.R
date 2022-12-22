@@ -13,6 +13,7 @@ p_load(tidyverse)
 p_load(janitor)
 p_load(readxl)
 p_load(tmap)
+p_load(sf)
 
 options (stringsAsFactors = FALSE)
 
@@ -170,7 +171,7 @@ naics_1 <- data.frame(naics = c( "313320 Fabric Coating Mills bcdefghik 380",
 )
 
 
-naics_2 <- data.frame(naics = c("332999 All Other Miscellaneous Fabricated Metal Product Manufacturing bdgh 4799 ",
+naics_2 <- data.frame(naics = c("332999 All Other Miscellaneous Fabricated Metal Product Manufacturing bdgh 4799",
                                 "424690 Other Chemical and Allied Products Merchant Wholesalers bdhj 1698",
                                 "314910 Textile Bag and Canvas Mills befi 0",
                                 "326112 Plastics Packaging Film and Sheet (including Laminated) Manufacturing defi 350",
@@ -181,7 +182,12 @@ naics_2 <- data.frame(naics = c("332999 All Other Miscellaneous Fabricated Metal
 )
 
 naics_salvatore <- bind_rows(naics_1, naics_2) %>% 
-  separate(naics, into = c("naics_code", "description"), sep = "(?!\\d) ")
+  mutate(naics_code = str_extract(naics, "\\d*"),
+         industry_title = str_extract(naics, "(?<= ).*(?= \\d)"),
+         n_facilities = str_extract(naics, "\\d*$")) %>% 
+  select(-naics)
+
+sum(as.numeric(naics_salvatore$n_facilities))
 
 facilities <- read_xlsx("PFAS Point Source Data/Facilities_in_industries_that_may_be_handling_PFAS_01-03-2022.xlsx",
                         sheet = 2)
@@ -196,6 +202,16 @@ facilities_naics <- facilities %>%
            CWA_NAICS %in% c(naics_salvatore$naics_code) |
            RCRA_NAICS %in% c(naics_salvatore$naics_code))
 
+facilities_naics %>% 
+  pivot_longer(names_to = "reporting_req", values_to = "naics_code", CAA_NAICS:RCRA_NAICS) %>% 
+  group_by(naics_code) %>% 
+  summarize(n_frsid = length(unique(frs_id))) %>% 
+  filter(naics_code %in% c(naics_salvatore$naics_code)) %>% 
+  full_join(naics_salvatore) %>% 
+  mutate(diff = abs(as.numeric(n_facilities)-n_frsid)) %>%
+  View()
+
+
 facilities_eh249 <- facilities %>% 
   mutate(frs_id = str_extract(`ECHO Facility Report`, "(?<=fid=)\\d*")) %>% 
   filter(!Industry %in% c("Airports", "Fire Training", "National Defense")) %>% 
@@ -206,10 +222,9 @@ facilities_salvatore <- facilities %>%
   mutate(frs_id = str_extract(`ECHO Facility Report`, "(?<=fid=)\\d*")) %>% 
   filter(!Industry %in% c("Airports", "Fire Training", "National Defense")) %>% 
   filter(!is.na(Latitude)) %>% 
-  filter(frs_id %in% facilities_naics$frs_id)%>% 
+  filter(frs_id %in% facilities_naics$frs_id) %>% 
   filter(TRI_FLAG == "N")
 
-setdiff(facilities_salvatore$frs_id, facilities_eh249_inclusion$frs_id)
 
 facilities_sf_eh249 <- facilities_eh249 %>% 
   sf::st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326) %>% 
@@ -260,6 +275,23 @@ production_sf <- production %>%
   clean_names() %>% 
   select(any_of(keepcols))
 
+################################################################################
+# 1i. WWTP  ####
+################################################################################
+
+
+# WWTPfacilities <- read_csv("PFAS Point Source Data/WWTP facility_details.csv")
+WWTPfacilities <- read_csv("PFAS Point Source Data/CWNSLoads09212017.csv") 
+
+wwtp_sf <- WWTPfacilities %>% 
+  filter(MAJOR_MINOR == "Major") %>% 
+  filter(!is.na(LAT_updated)) %>% 
+  sf::st_as_sf(coords = c("LONG_updated", "LAT_updated")) %>% 
+  mutate(loc_name = as.character(CWNS_NBR)) %>% 
+  clean_names() %>% 
+  select(any_of(keepcols)) %>% 
+  distinct()
+
 
 ################################################################################
 # 2. JOIN TOGETHER ####
@@ -267,14 +299,16 @@ production_sf <- production %>%
 
 all_ppps_eh249 <- bind_rows(lst(epastewardship_county_sf, 
                           fire_sf, airports_sf,
-                          fed_agencies_sf, superfund_sf, 
-                          facilities_sf_eh249, spills_sf, production_sf), .id = "dataset") 
+                          fed_agencies_sf, superfund_sf,
+                          facilities_sf_eh249, spills_sf, 
+                          production_sf, wwtp_sf), .id = "dataset") 
 
 
 all_ppps_salvatore <- bind_rows(lst(epastewardship_county_sf, 
                                 fire_sf, airports_sf,
                                 fed_agencies_sf, superfund_sf, 
-                                facilities_sf_salvatore, spills_sf, production_sf), .id = "dataset") 
+                                facilities_sf_salvatore, spills_sf, 
+                                production_sf, wwtp_sf), .id = "dataset") 
 
 # nrow(all_ppps_eh249)
 
@@ -301,8 +335,6 @@ eji_data_fromCDC <- read_csv("eji/DataRecords.csv") %>%
 p_load(tigris)
 
 state_list <- unique(stateabbnamekey$stateabb)
-
-
 
 
 #census_data_bind <-  rbind_tigris(census_list)
