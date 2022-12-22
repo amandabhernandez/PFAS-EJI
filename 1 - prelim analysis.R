@@ -71,38 +71,43 @@ length(unique(eji_data_fromCDC$geoid))
 #how many census tracts with PFAS point source data
 length(unique(ppps_salvatore_count$geoid))
 #16,274 census tracts with PFAS point source data
+#18,548 (with wwtp)
 
 #how many census tracts with PFAS point source data
 length(unique(ppps_eh249_count$geoid))
 #20,354 census tracts with PFAS point source data 
 #25,681 census tracts with PFAS point source data (12/21/22) -- diff likely bc 
 #we fixed the census tract matching issue
-
+#27,217 (wwtp)
 
 #as a percent? 
 (length(unique(ppps_eh249_count$geoid))/length(unique(eji_data_fromCDC$geoid)))*100
 #23%
 #35.8%
+#37.9% (wwtp)
 
 
 #as a percent? 
 (length(unique(ppps_salvatore_count$geoid))/length(unique(eji_data_fromCDC$geoid)))*100
 #22%
+#25.9% (wwtp)
 
 #how many facilities in ppps dataset?
 sum(ppps_eh249_count$n)
 #83,692
 #110,691 (12/21/22)
+#114,860 (wwtp)
 
 
 #how many facilities in ppps dataset?
 sum(ppps_salvatore_count$n)
 #32,125 (12/21/22)
+#36,294 (wwtp)
 
 
 
 eji_w_ppps_eh249 <-eji_data_fromCDC %>% 
-  left_join(ppps_eh249_count)  %>% 
+  full_join(ppps_eh249_count)  %>% 
   select(1:geoid, contains("EJI"), "RPL_EBM", "RPL_SVM",  "RPL_HVM", n) %>% 
   mutate(n_ppps = ifelse(is.na(n), 0, as.numeric(n)),
          n_ppps_groups = case_when(n_ppps == 0 ~ "0",
@@ -127,7 +132,7 @@ table(eji_w_ppps_eh249$n_ppps_groups)
 
 
 eji_w_ppps_salvatore <-eji_data_fromCDC %>% 
-  left_join(ppps_salvatore_count)  %>% 
+  full_join(ppps_salvatore_count)  %>% 
   select(1:geoid, contains("EJI"), "RPL_EBM", "RPL_SVM",  "RPL_HVM", n) %>% 
   mutate(n_ppps = ifelse(is.na(n), 0, as.numeric(n)),
          n_ppps_groups = case_when(n_ppps == 0 ~ "0",
@@ -171,10 +176,12 @@ length(unique(eji_w_ppps_salvatore$geoid))
 sum(eji_w_ppps_eh249$n_ppps)
 #83,692
 #110,691
+#114,860 (wwtp)
 
 #how many ppps in final dataset? 
 sum(eji_w_ppps_salvatore$n_ppps)
 #32,125 
+#36,294 (wwtp)
 
 
 stopifnot(sum(eji_w_ppps_eh249$n_ppps) == sum(ppps_eh249_count$n))
@@ -276,7 +283,7 @@ ppps_eh249_count_dataset <- ppps_eh249_tract_df %>%
   filter(!is.na(geoid))
 
 eji_w_ppps_salvatore_dataset <-eji_data_fromCDC %>% 
-  left_join(ppps_salvatore_count_dataset)  %>% 
+  full_join(ppps_salvatore_count_dataset)  %>% 
   select(1:geoid, dataset, contains("EJI"), "RPL_EBM", "RPL_SVM",  "RPL_HVM", n) %>% 
   mutate(n_ppps = ifelse(is.na(n), 0, as.numeric(n)),
          n_ppps_groups = case_when(n_ppps == 0 ~ "0",
@@ -300,7 +307,7 @@ eji_w_ppps_salvatore_dataset <-eji_data_fromCDC %>%
   
 
 eji_w_ppps_eh249_dataset <-eji_data_fromCDC %>% 
-  left_join(ppps_eh249_count_dataset)  %>% 
+  full_join(ppps_eh249_count_dataset)  %>% 
   select(1:geoid, dataset, contains("EJI"), "RPL_EBM", "RPL_SVM",  "RPL_HVM", n) %>% 
   mutate(n_ppps = ifelse(is.na(n), 0, as.numeric(n)),
          n_ppps_groups = case_when(n_ppps == 0 ~ "0",
