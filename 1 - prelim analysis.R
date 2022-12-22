@@ -275,9 +275,28 @@ ppps_eh249_count_dataset <- ppps_eh249_tract_df %>%
   count() %>% 
   filter(!is.na(geoid))
 
+clean_dataset_names <- function(dat) {
+  dat %>% 
+    mutate( dataset = factor(dataset, levels = c("all ppps", "airports_sf", "epastewardship_county_sf",
+                                                 "facilities_sf", "fed_agencies_sf", "fire_sf", "production_sf",
+                                                 "spills_sf", "superfund_sf"),
+                             labels = c("All Potential\nPFAS Point Sources", "14 CFR Part\n139 Airports",
+                                        "EPA Stewardship Program\nParticipating Facility",
+                                        "Facilities in Industries\nthat May be Handling PFAS",
+                                        "Federal Agency Locations with\nKnown or Suspected\nPFAS Detections",
+                                        "Fire Training Sites", "Facilities that Manufacture\nor Import PFAS",
+                                        "Known PFAS\nSpills/Release Incidents", "Superfund Sites\nwith PFAS Detections")))
+}
+
 eji_w_ppps_salvatore_dataset <-eji_data_fromCDC %>% 
+  select(1:geoid, contains("EJI")) %>% 
   left_join(ppps_salvatore_count_dataset)  %>% 
-  select(1:geoid, dataset, contains("EJI"), "RPL_EBM", "RPL_SVM",  "RPL_HVM", n) %>% 
+  distinct() %>% 
+  mutate(dataset = case_when(is.na(dataset) ~ "all ppps",
+                             TRUE ~ dataset)) %>% 
+  pivot_wider(names_from = dataset, values_from = n, values_fill = 0) %>% 
+  pivot_longer(names_to = "dataset", values_to = "n", `all ppps`:superfund_sf) %>% 
+  select(1:geoid, contains("EJI"), dataset, n) %>% 
   mutate(n_ppps = ifelse(is.na(n), 0, as.numeric(n)),
          n_ppps_groups = case_when(n_ppps == 0 ~ "0",
                                    n_ppps == 1 ~ "1",
@@ -293,15 +312,31 @@ eji_w_ppps_salvatore_dataset <-eji_data_fromCDC %>%
                                    # n_ppps >100 ~ ">100"
          ),
          n_ppps_groups = factor(n_ppps_groups, levels = c("0", "1", "2", "3", "4", "5",
-                                                          "≤10", "≤20", "≤50", ">50"
-                                                          # "≤100", ">100"
-         ))) %>%
-  distinct()
+                                                          "≤10", "≤20", "≤50",">50"
+                                                          #"≤100", ">100"
+                                                          )))  %>% 
+  mutate( dataset = factor(dataset, levels = c("all ppps", "airports_sf", "epastewardship_county_sf",
+                                               "facilities_sf_salvatore", "fed_agencies_sf", "fire_sf", "production_sf",
+                                               "spills_sf", "superfund_sf"),
+                           labels = c("All Potential\nPFAS Point Sources", "14 CFR Part\n139 Airports",
+                                      "EPA Stewardship Program\nParticipating Facility",
+                                      "Facilities in Industries\nthat May be Handling PFAS",
+                                      "Federal Agency Locations with\nKnown or Suspected\nPFAS Detections",
+                                      "Fire Training Sites", "Facilities that Manufacture\nor Import PFAS",
+                                      "Known PFAS\nSpills/Release Incidents", "Superfund Sites\nwith PFAS Detections")))
+
+
   
 
 eji_w_ppps_eh249_dataset <-eji_data_fromCDC %>% 
+  select(1:geoid, contains("EJI")) %>% 
   left_join(ppps_eh249_count_dataset)  %>% 
-  select(1:geoid, dataset, contains("EJI"), "RPL_EBM", "RPL_SVM",  "RPL_HVM", n) %>% 
+  distinct() %>% 
+  mutate(dataset = case_when(is.na(dataset) ~ "all ppps",
+                             TRUE ~ dataset)) %>% 
+  pivot_wider(names_from = dataset, values_from = n, values_fill = 0) %>% 
+  pivot_longer(names_to = "dataset", values_to = "n", `all ppps`:superfund_sf) %>% 
+  select(1:geoid, contains("EJI"), dataset, n) %>% 
   mutate(n_ppps = ifelse(is.na(n), 0, as.numeric(n)),
          n_ppps_groups = case_when(n_ppps == 0 ~ "0",
                                    n_ppps == 1 ~ "1",
@@ -316,15 +351,23 @@ eji_w_ppps_eh249_dataset <-eji_data_fromCDC %>%
                                    n_ppps >100 ~ ">100"
          ),
          n_ppps_groups = factor(n_ppps_groups, levels = c("0", "1", "2", "3", "4", "5",
-                                                          "≤10", "≤20", "≤50", 
-                                                          "≤100", ">100"
-         ))) %>%
-  distinct()
+                                                          "≤10", "≤20", "≤50", "≤100", ">100")))  %>% 
+  mutate( dataset = factor(dataset, levels = c("all ppps", "airports_sf", "epastewardship_county_sf",
+                                               "facilities_sf_eh249", "fed_agencies_sf", "fire_sf", "production_sf",
+                                               "spills_sf", "superfund_sf"),
+                           labels = c("All Potential\nPFAS Point Sources", "14 CFR Part\n139 Airports",
+                                      "EPA Stewardship Program\nParticipating Facility",
+                                      "Facilities in Industries\nthat May be Handling PFAS",
+                                      "Federal Agency Locations with\nKnown or Suspected\nPFAS Detections",
+                                      "Fire Training Sites", "Facilities that Manufacture\nor Import PFAS",
+                                      "Known PFAS\nSpills/Release Incidents", "Superfund Sites\nwith PFAS Detections")))
 
-# 
-# all_tracts_together_w_datasets_too <- all_tracts_ppps %>% 
-#   mutate(dataset = "all ppps") %>% 
-#   bind_rows(all_tracts_ppps_dataset) %>% 
+
+table(eji_w_ppps_eh249_dataset$dataset, eji_w_ppps_eh249_dataset$n_ppps_groups, useNA = "ifany")
+
+# all_tracts_together_w_datasets_too <- all_tracts_ppps %>%
+#   mutate(dataset = "all ppps") %>%
+#   bind_rows(all_tracts_ppps_dataset) %>%
 #   mutate( dataset = factor(dataset, levels = c("all ppps", "airports_sf", "epastewardship_county_sf",
 #                                                "facilities_sf", "fed_agencies_sf", "fire_sf", "production_sf",
 #                                                "spills_sf", "superfund_sf"),
@@ -336,7 +379,8 @@ eji_w_ppps_eh249_dataset <-eji_data_fromCDC %>%
 #                                       "Known PFAS\nSpills/Release Incidents", "Superfund Sites\nwith PFAS Detections")))
 
 
-ggplot(eji_w_ppps_eh249_dataset, aes(x = n_ppps_groups, y = SPL_EJI)) +
+ggplot(eji_w_ppps_eh249_dataset %>% 
+         filter(dataset != "All Potential\nPFAS Point Sources"), aes(x = n_ppps_groups, y = SPL_EJI)) +
   ggforce::geom_sina(alpha = 0.5, color = "lightgrey") +
   geom_boxplot(width = 0.1, guides = FALSE, outlier.shape = NA, size = 1, color = "#3a3838") +
   xlab("# of Potential PFAS Point Sources") + 
@@ -350,13 +394,12 @@ ggplot(eji_w_ppps_eh249_dataset, aes(x = n_ppps_groups, y = SPL_EJI)) +
   ) + 
   ggtitle("EJI with EH249 PFAS Point Sources")
 
-
-
-ggsave("eji census tracts with eh249 ppps boxplots by dataset.png", width = 18, height = 10, units = "in")
+ggsave("eji census tracts with eh249 ppps boxplots by dataset.png", width = 18, height = 15, units = "in")
 
 
 
-ggplot(eji_w_ppps_salvatore_dataset, aes(x = n_ppps_groups, y = SPL_EJI)) +
+ggplot(eji_w_ppps_salvatore_dataset %>% 
+         filter(dataset != "All Potential\nPFAS Point Sources"), aes(x = n_ppps_groups, y = SPL_EJI)) +
   ggforce::geom_sina(alpha = 0.5, color = "lightgrey") +
   geom_boxplot(width = 0.1, guides = FALSE, outlier.shape = NA, size = 1, color = "#3a3838") +
   xlab("# of Potential PFAS Point Sources") + 
@@ -371,7 +414,7 @@ ggplot(eji_w_ppps_salvatore_dataset, aes(x = n_ppps_groups, y = SPL_EJI)) +
   ggtitle("EJI with salvatore PFAS Point Sources")
 
 
-ggsave("eji census tracts with salvatore ppps boxplots by dataset.png", width = 18, height = 10, units = "in")
+ggsave("eji census tracts with salvatore ppps boxplots by dataset.png", width = 18, height = 15, units = "in")
 
 
 ################################################################################
