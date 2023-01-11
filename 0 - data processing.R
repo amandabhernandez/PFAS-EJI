@@ -15,12 +15,7 @@ p_load(readxl)
 p_load(tmap)
 p_load(sf)
 
-options (stringsAsFactors = FALSE)
-
-source_file_loc <- dirname(rstudioapi::getActiveDocumentContext()$path)
-setwd(source_file_loc)
-
-
+setwd(here::here())
 
 ################################################################################
 #  1. LOAD SOME DATA!!!  ####
@@ -212,6 +207,10 @@ facilities_naics %>%
   View()
 
 
+frs_notTRI <- read_csv("PFAS Point Source Data/FRS_facilities_notin_TRI.csv")
+
+
+
 facilities_eh249 <- facilities %>% 
   mutate(frs_id = str_extract(`ECHO Facility Report`, "(?<=fid=)\\d*")) %>% 
   filter(!Industry %in% c("Airports", "Fire Training", "National Defense")) %>% 
@@ -225,6 +224,11 @@ facilities_salvatore <- facilities %>%
   filter(frs_id %in% facilities_naics$frs_id) %>% 
   filter(TRI_FLAG == "N")
 
+table(facilities_salvatore$frs_id %in% c(frs_notTRI$REGISTRY_ID))
+
+facilities_salvatore %>% 
+  filter(!frs_id %in% frs_notTRI$REGISTRY_ID) %>% 
+  View()
 
 facilities_sf_eh249 <- facilities_eh249 %>% 
   sf::st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326) %>% 
