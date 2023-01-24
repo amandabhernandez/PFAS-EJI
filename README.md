@@ -1,2 +1,2 @@
 # PFAS-EJI
-EH 249 Final Project
+a work in progress
