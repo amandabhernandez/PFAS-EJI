@@ -46,8 +46,6 @@ fips <- tigris::fips_codes
 
 
 p_load(tidycensus)
-Sys.getenv("CENSUS_API_KEY")
-census_api_key("f276739b31b176620b81010095385ce4e5608b5f", install = TRUE)
 
 
 tidycensus_list_5yr_2019 <- list()
@@ -79,21 +77,30 @@ tidy_tracts <- bind_rows(tidycensus_list_5yr_2019) %>%
   select(-variable, -estimate, -moe)
 
 eji_spatial_tidy <- tidy_tracts %>% 
-  left_join(eji_data_fromCDC %>% select(1:geoid, contains("EJI"))) %>% 
+  left_join(eji_data_fromCDC,  #%>% 
+              #select(1:geoid, contains("EJI"))
+            by = "geoid"
+            ) %>% 
   left_join(fips, by = c( "statefp" = "state_code", "countyfp" = "county_code" )) 
 #73128 (full)
 #73128 (left)
 
+save(eji_spatial_tidy, tidy_tracts,
+     file = "data/processed/eji_spatial_1b_output.RData")
+
+
+
+
 # stopifnot()
 
-eji_spatial_tidy %>%
-  filter(is.na(name)) %>% 
-  View()
-
-
-eji_spatial_tidy %>%
-  filter(is.na(RPL_EJI)) %>% 
-  View()
+# eji_spatial_tidy %>%
+#   filter(is.na(name)) %>% 
+#   View()
+# 
+# 
+# eji_spatial_tidy %>%
+#   filter(is.na(RPL_EJI)) %>% 
+#   View()
 
 
 
