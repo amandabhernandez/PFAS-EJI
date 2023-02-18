@@ -10,73 +10,74 @@
 
 source("0 - setup.R")
 
-load("pps_eji_counts.RData")
+load("data/processed/all_ppps_w_count.RData")
+load("data/processed/all_ppps_WOspatial_1c_output.RData")
 
 
 ################################################################################
 # 1. INSPECT CORRELATIONS  ####
 ################################################################################
 
-
-eji_w_ppps_salvatore_wallEJI <-eji_data_fromCDC %>% 
-  full_join(ppps_salvatore_count)  %>% 
-  mutate(n_ppps = ifelse(is.na(n), 0, as.numeric(n)),
-         n_ppps_groups = case_when(n_ppps == 0 ~ "0",
-                                   n_ppps == 1 ~ "1",
-                                   n_ppps == 2 ~ "2",
-                                   n_ppps == 3 ~ "3",
-                                   n_ppps == 4 ~ "4",
-                                   n_ppps == 5 ~ "5",
-                                   n_ppps <= 10 ~ "≤10",
-                                   n_ppps <= 20 ~ "≤20",
-                                   n_ppps <= 50 ~ "≤50",
-                                   n_ppps <= 100 ~ "≤100",
-                                   n_ppps >100 ~ ">100"
-         ),
-         n_ppps_groups = factor(n_ppps_groups, levels = c("0", "1", "2", "3", "4", "5",
-                                                          "≤10", "≤20", "≤50", 
-                                                          "≤100", ">100"
-         ))) %>%
-  distinct()
-
-
-eji_w_ppps_eh249_wallEJI <-eji_data_fromCDC %>% 
-  full_join(ppps_eh249_count)  %>% 
-  mutate(n_ppps = ifelse(is.na(n), 0, as.numeric(n)),
-         n_ppps_groups = case_when(n_ppps == 0 ~ "0",
-                                   n_ppps == 1 ~ "1",
-                                   n_ppps == 2 ~ "2",
-                                   n_ppps == 3 ~ "3",
-                                   n_ppps == 4 ~ "4",
-                                   n_ppps == 5 ~ "5",
-                                   n_ppps <= 10 ~ "≤10",
-                                   n_ppps <= 20 ~ "≤20",
-                                   n_ppps <= 50 ~ "≤50",
-                                   n_ppps <= 100 ~ "≤100",
-                                   n_ppps >100 ~ ">100"
-         ),
-         n_ppps_groups = factor(n_ppps_groups, levels = c("0", "1", "2", "3", "4", "5",
-                                                          "≤10", "≤20", "≤50", 
-                                                          "≤100", ">100"
-         ))) %>%
-  distinct()
-
+# 
+# eji_w_ppps_salvatore_wallEJI <-eji_data_fromCDC %>% 
+#   full_join(ppps_salvatore_count)  %>% 
+#   mutate(n_ppps = ifelse(is.na(n), 0, as.numeric(n)),
+#          n_ppps_groups = case_when(n_ppps == 0 ~ "0",
+#                                    n_ppps == 1 ~ "1",
+#                                    n_ppps == 2 ~ "2",
+#                                    n_ppps == 3 ~ "3",
+#                                    n_ppps == 4 ~ "4",
+#                                    n_ppps == 5 ~ "5",
+#                                    n_ppps <= 10 ~ "≤10",
+#                                    n_ppps <= 20 ~ "≤20",
+#                                    n_ppps <= 50 ~ "≤50",
+#                                    n_ppps <= 100 ~ "≤100",
+#                                    n_ppps >100 ~ ">100"
+#          ),
+#          n_ppps_groups = factor(n_ppps_groups, levels = c("0", "1", "2", "3", "4", "5",
+#                                                           "≤10", "≤20", "≤50", 
+#                                                           "≤100", ">100"
+#          ))) %>%
+#   distinct()
+# 
+# 
+# eji_w_ppps_eh249_wallEJI <-eji_data_fromCDC %>% 
+#   full_join(ppps_eh249_count)  %>% 
+#   mutate(n_ppps = ifelse(is.na(n), 0, as.numeric(n)),
+#          n_ppps_groups = case_when(n_ppps == 0 ~ "0",
+#                                    n_ppps == 1 ~ "1",
+#                                    n_ppps == 2 ~ "2",
+#                                    n_ppps == 3 ~ "3",
+#                                    n_ppps == 4 ~ "4",
+#                                    n_ppps == 5 ~ "5",
+#                                    n_ppps <= 10 ~ "≤10",
+#                                    n_ppps <= 20 ~ "≤20",
+#                                    n_ppps <= 50 ~ "≤50",
+#                                    n_ppps <= 100 ~ "≤100",
+#                                    n_ppps >100 ~ ">100"
+#          ),
+#          n_ppps_groups = factor(n_ppps_groups, levels = c("0", "1", "2", "3", "4", "5",
+#                                                           "≤10", "≤20", "≤50", 
+#                                                           "≤100", ">100"
+#          ))) %>%
+#   distinct()
+# 
 
 
 ###### SPEARMAN CORR ######
 
-eji_codebook <- read_csv("eji/eji_codebook/files/output/eji_codebook.csv") 
+eji_codebook <- read_csv("data/raw/EJI/eji_codebook/files/output/eji_codebook.csv") 
 
 eji_codebook_revised <- eji_codebook %>% 
   mutate(var_desc = case_when(str_detect(variable_name, "(?<=_).*") ~ str_extract(variable_name, "(?<=_).*"),
                               TRUE ~ variable_name),
          var_metric = str_extract(variable_name, "^.{3}(?=_)"))
 
-eji_ppps_spearman_salvatore <- eji_w_ppps_salvatore_wallEJI %>% 
+eji_ppps_spearman_salvatore <- eji_w_ppps_salvatore %>% 
   select(E_TOTPOP:EPL_MHLTH, n, n_ppps) 
 
 
-eji_ppps_spearman_eh249 <- eji_w_ppps_eh249_wallEJI %>% 
+eji_ppps_spearman_eh249 <- eji_w_ppps_eh249 %>% 
   select(E_TOTPOP:EPL_MHLTH, n, n_ppps) 
 
 
@@ -177,7 +178,7 @@ ggsave("eji census tracts with salvatore ppps boxplots.png", width = 18, height 
 
 
 eji_w_ppps_eh249 %>% 
-  pivot_longer(names_to = "metric", values_to = "score", SPL_EJI:RPL_HVM) %>% 
+  pivot_longer(names_to = "metric", values_to = "score", c("RPL_EJI", "SPL_EJI", "RPL_EBM", "RPL_HVM", "RPL_SVM")) %>% 
   mutate(metric = factor(metric, levels = c("RPL_EJI", "SPL_EJI", "RPL_EBM", "RPL_HVM", "RPL_SVM"),
                          labels = c("EJI Rank", "Sum of all modules", "Env Burden Module",
                                     "Health Vulnerability Module", "Social Vulnerability Module"))) %>% 

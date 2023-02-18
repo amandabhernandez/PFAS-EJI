@@ -15,9 +15,7 @@ source("0 - setup.R")
 # 1. LOAD DATA ####
 ################################################################################
 
-load("census_eji_all_ppps_wo_spatial.RData")
-
-
+load("data/processed/all_ppps_WOspatial_1c_output.RData")
 
 ################################################################################
 # 2. MAKE PPPS COUNTS ####
@@ -93,7 +91,7 @@ sum(ppps_salvatore_count$n)
 
 eji_w_ppps_eh249 <-eji_tracts_df %>% 
   full_join(ppps_eh249_count)  %>% 
-  select(1:geoid, contains("EJI"), "RPL_EBM", "RPL_SVM",  "RPL_HVM", n) %>% 
+  #select(1:geoid, contains("EJI"), "RPL_EBM", "RPL_SVM",  "RPL_HVM", n) %>% 
   mutate(n_ppps = ifelse(is.na(n), 0, as.numeric(n)),
          n_ppps_groups = case_when(n_ppps == 0 ~ "0",
                                    n_ppps == 1 ~ "1",
@@ -120,7 +118,7 @@ table(eji_w_ppps_eh249$n_ppps_groups)
 
 eji_w_ppps_salvatore <-eji_data_fromCDC %>% 
   full_join(ppps_salvatore_count)  %>% 
-  select(1:geoid, contains("EJI"), "RPL_EBM", "RPL_SVM",  "RPL_HVM", n) %>% 
+  #select(1:geoid, contains("EJI"), "RPL_EBM", "RPL_SVM",  "RPL_HVM", n) %>% 
   mutate(n_ppps = ifelse(is.na(n), 0, as.numeric(n)),
          n_ppps_groups = case_when(n_ppps == 0 ~ "0",
                                    n_ppps == 1 ~ "1",
@@ -181,4 +179,56 @@ sum(eji_w_ppps_salvatore$n_ppps)
 
 stopifnot(sum(eji_w_ppps_eh249$n_ppps) == sum(ppps_eh249_count$n))
 stopifnot(sum(eji_w_ppps_salvatore$n_ppps) == sum(ppps_salvatore_count$n))
+
+save(eji_w_ppps_eh249, eji_w_ppps_salvatore,
+     file = "data/processed/all_ppps_w_count.RData")
+
+################################################################################
+# 6. SUMMARIZE MERGES    ####
+################################################################################
+
+
+
+# table(all_ppps$dataset, useNA = "ifany")
+# 
+# 
+# table(sites_census_tract$dataset)
+# 
+# st_drop_geometry(sites_census_tract) %>% 
+#   distinct() %>% 
+#   select(dataset:geoid)
+
+
+# all_ppps_eji <- eji_data_fromCDC %>% 
+#   full_join(ppps_salvatore_tract_df)
+# 
+# table1 <- st_drop_geometry(all_ppps_salvatore) %>% 
+#   distinct() %>% 
+#   group_by(dataset) %>% 
+#   count() %>% 
+#   mutate(count = "n") %>% 
+#   bind_rows(all_ppps_eji %>% 
+#               group_by(dataset) %>% 
+#               count() %>% 
+#               mutate(count = "n_inEJI")
+#             ) %>% 
+#   bind_rows(eji_w_ppps_salvatore %>% 
+#               distinct() %>% 
+#               group_by(.) %>% 
+#               count() %>% 
+#               mutate(dataset = "all ppps",
+#                      count = "n") %>% 
+#               bind_rows(eji_w_ppps_salvatore %>% 
+#                           group_by(dataset) %>% 
+#                           summarise(n = sum(n)) %>% 
+#                           mutate(dataset = "all ppps",
+#                                  count = "n_inEJI"))) %>% 
+#   pivot_wider(names_from = count, values_from = n) %>% 
+#   mutate(perc_dif = (n_inEJI/n)) 
+# 
+# 
+# write_csv(table1, "summary of ppps merges.csv")
+# 
+
+
 
