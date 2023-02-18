@@ -7,4 +7,8 @@
 *.dta
 *.csv
 *.zip
+*.txt
 PFAS Point Source Data/
+archive/
+output/
+eji_codebook.Rproj
