@@ -1,6 +1,6 @@
 ### AUTHOR: AHz
 ### WRITTEN IN: R version 4.2.2
-### PURPOSE: 
+### PURPOSE: Load and process all PFAS Point Source data
 
 
 
@@ -10,6 +10,7 @@
 
 source("scripts/0 - setup.R")
 
+keepcols <- c("loc_name", "city", "county", "state", "geometry")
 
 ################################################################################
 #  1a. EPA STEWARDSHIP PROGRAM ####
@@ -19,16 +20,11 @@ source("scripts/0 - setup.R")
 
 epastewardship <- read_excel("data/raw/PFAS Point Source Data/EPA 2010.2015 PFOA Stewardship Program sites.xlsx")
 
-# Reshaping, processing, and renaming columns for point source data by counties
-epastewardship_county <- epastewardship %>% 
-  mutate(geography = paste0(tolower(County), " county, ", tolower(State))) %>% 
-  separate(Coordinates, sep = ", ", into = c("lat", "long"))
-
-
-epastewardship_county_sf <- epastewardship_county %>%
-  sf::st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
-  mutate(loc_name = as.character(Company)) %>% 
-  clean_names() %>% 
+epastewardship_county_sf <- epastewardship %>%
+  separate(Coordinates, sep = ", ", into = c("lat", "long")) %>%
+  sf::st_as_sf(coords = c("long", "lat"), crs = 4326) %>%
+  mutate(loc_name = paste0(tolower(County), ", ", tolower(State))) %>%
+  clean_names() %>%
   select(any_of(keepcols))
 
 
@@ -36,22 +32,21 @@ epastewardship_county_sf <- epastewardship_county %>%
 #  1b. AIRPORTS ####
 ################################################################################
 
-
-# PFAS POINT SOURCE FILES FROM UCMR/EJ PROJECT (also thx Jahred)
-airports <- read_excel("data/raw/PFAS Point Source Data/Part 139_cert_airports.xlsx")
 airports_epa <- read_excel("data/raw/PFAS Point Source Data/Airports_Data_FAA2_0_0.xlsx")
 
 #!#! check out if these are different!! 
+## PFAS POINT SOURCE FILES FROM UCMR/EJ PROJECT (also thx Jahred)
+## airports <- read_excel("data/raw/PFAS Point Source Data/Part 139_cert_airports.xlsx") %>% 
+#   mutate(LocationID = str_extract(pattern = "(?<=').*", LocationID))
+# setdiff(airports$LocationID, airports_epa$AirportID)
+# setdiff(airports_epa$AirportID, airports$LocationID)
 
-airports_county <- airports %>%
-  left_join(stateabbnamekey, by = c("CountyState" = "stateabb")) %>%
-  mutate(geography = paste0(tolower(County), " county, ", tolower(fullstate)))
 
-airports_sf <- airports_county %>%
+airports_sf <- airports_epa %>%
   mutate(lat = as.numeric(str_extract(ARPLatitudeS, "\\d*.\\d*"))/3600,
          long = as.numeric(str_extract(ARPLongitudeS, "\\d*.\\d*"))/-3600) %>%
   sf::st_as_sf(coords = c("long", "lat"), crs = 4326) %>%
-  rename(loc_name = FacilityName) %>%
+  rename(loc_name = AirportName) %>%
   clean_names() %>%
   select(any_of(keepcols))
 
@@ -91,7 +86,7 @@ fed_agencies_sf <- fed_agencies %>%
 # 1e. SUPERFUND  ####
 ################################################################################
 
-superfund <- read_xlsx("data/raw/PFAS Point Source Data/uperfund_Sites_with_PFAS_Detections_03-04-2022_0.xlsx",
+superfund <- read_xlsx("data/raw/PFAS Point Source Data/Superfund_Sites_with_PFAS_Detections_03-04-2022_0.xlsx",
                        sheet = 2)
 
 superfund_sf <- superfund %>% 
@@ -105,7 +100,7 @@ superfund_sf <- superfund %>%
 # 1f. FACILITIES  ####
 ################################################################################
 
-naics_1 <- data.frame(naics = c( "313320 Fabric Coating Mills bcdefghik 380",
+naics_salvatore <- data.frame(naics = c( "313320 Fabric Coating Mills bcdefghik 380",
                                  "325510 Paint and Coating Manufacturing abcdefhik 2100",
                                  "322220 Paper Bag and Coated and Treated Paper Manufacturing bcdefghi 0",
                                  "313210 Broadwoven Fabric Mills bcdefhk 484",
@@ -134,11 +129,8 @@ naics_1 <- data.frame(naics = c( "313320 Fabric Coating Mills bcdefghik 380",
                                  "323120 Support Activities for Printing bcdh 0",
                                  "313220 Narrow Fabric Mills and Schiffli Machine Embroidery cefk 0",
                                  "313230 Nonwoven Fabric Mills bchk 239",
-                                 "322130 Paperboard Mills cefk 258")
-)
-
-
-naics_2 <- data.frame(naics = c("332999 All Other Miscellaneous Fabricated Metal Product Manufacturing bdgh 4799",
+                                 "322130 Paperboard Mills cefk 258",
+                                 "332999 All Other Miscellaneous Fabricated Metal Product Manufacturing bdgh 4799",
                                 "424690 Other Chemical and Allied Products Merchant Wholesalers bdhj 1698",
                                 "314910 Textile Bag and Canvas Mills befi 0",
                                 "326112 Plastics Packaging Film and Sheet (including Laminated) Manufacturing defi 350",
@@ -148,7 +140,7 @@ naics_2 <- data.frame(naics = c("332999 All Other Miscellaneous Fabricated Metal
                                 "325611 Soap and Other Detergent Manufacturing abeh 1012")
 )
 
-naics_salvatore <- bind_rows(naics_1, naics_2) %>% 
+naics_salvatore <- naics_salvatore %>% 
   mutate(naics_code = str_extract(naics, "\\d*"),
          industry_title = str_extract(naics, "(?<= ).*(?= \\d)"),
          n_facilities = str_extract(naics, "\\d*$")) %>% 
@@ -180,7 +172,7 @@ facilities_naics <- facilities %>%
 #   View()
 
 
-frs_notTRI <- read_csv("data/raw/PFAS Point Source Data/FRS_facilities_notin_TRI.csv")
+# frs_notTRI <- read_csv("data/raw/PFAS Point Source Data/FRS_facilities_notin_TRI.csv")
 
 
 
@@ -264,18 +256,18 @@ production_sf <- production %>%
 
 
 # WWTPfacilities <- read_csv("data/raw/PFAS Point Source Data/WWTP facility_details.csv")
-WWTPfacilities <- read_csv("data/raw/PFAS Point Source Data/CWNSLoads09212017.csv") 
-
-wwtp_sf <- WWTPfacilities %>% 
-  filter(MAJOR_MINOR == "Major") %>% 
-  filter(!is.na(LAT_updated)) %>% 
-  sf::st_as_sf(coords = c("LONG_updated", "LAT_updated")) %>% 
-  mutate(loc_name = as.character(CWNS_NBR)) %>% 
-  clean_names() %>% 
-  select(any_of(keepcols)) %>% 
-  distinct()
-
-
+# WWTPfacilities <- read_csv("data/raw/PFAS Point Source Data/CWNSLoads09212017.csv") 
+# 
+# wwtp_sf <- WWTPfacilities %>% 
+#   filter(MAJOR_MINOR == "Major") %>% 
+#   filter(!is.na(LAT_updated)) %>% 
+#   sf::st_as_sf(coords = c("LONG_updated", "LAT_updated")) %>% 
+#   mutate(loc_name = as.character(CWNS_NBR)) %>% 
+#   clean_names() %>% 
+#   select(any_of(keepcols)) %>% 
+#   distinct()
+# 
+# 
 
 ################################################################################
 # 2. JOIN TOGETHER ####
@@ -285,15 +277,19 @@ all_ppps_eh249 <- bind_rows(lst(epastewardship_county_sf,
                                 fire_sf, airports_sf,
                                 fed_agencies_sf, superfund_sf,
                                 facilities_sf_eh249, spills_sf, 
-                                production_sf, wwtp_sf), .id = "dataset") 
+                                production_sf), .id = "dataset") 
 
 
 all_ppps_salvatore <- bind_rows(lst(epastewardship_county_sf, 
                                     fire_sf, airports_sf,
                                     fed_agencies_sf, superfund_sf, 
                                     facilities_sf_salvatore, spills_sf, 
-                                    production_sf, wwtp_sf), .id = "dataset") 
+                                    production_sf), .id = "dataset") 
 
 
 
+
+#save as RData file so it can be opened in 1c
+save(all_ppps_eh249, all_ppps_salvatore, 
+     file = "data/processed/all_ppps_1a_output.RData")
 
