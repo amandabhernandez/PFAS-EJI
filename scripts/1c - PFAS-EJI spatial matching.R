@@ -39,7 +39,7 @@ ppps_eh249_tract <- all_ppps_eh249 %>%
 
 
 #save as RData file so it can be opened in next script 
-save(eji_spatial_tidy, ppps_salvatore_tract, ppps_eh249_tract,
+save(eji_census_tracts_transformed, ppps_salvatore_tract, ppps_eh249_tract,
      file = "data/processed/all_ppps_spatial_1c_output.RData")
 
 
@@ -60,8 +60,10 @@ ppps_sa <- eji_census_tracts_transformed %>%
 #   filter(city == "SAN ANTONIO" & state.x == "TX") %>% 
 #   mutate(buffer = st_buffer(geometry, 1609.34))
 
-ppps_1mi_buffer_sa <- ppps_salvatore_tract %>%
-    filter(city == "SAN ANTONIO" & state.x == "TX") %>%
+pfas_sa <- ppps_salvatore_tract %>%
+  filter(city == "SAN ANTONIO" & state.x == "TX") 
+
+ppps_1mi_buffer_sa <- pfas_sa %>%
     st_buffer(1609.34)
 
 tm_shape(ppps_1mi_buffer_sa$buffer) +
@@ -174,33 +176,71 @@ tm_shape(ppps_sa_perc) +
   tm_shape(ppps_1mi_buffer_sa$geometry) +
   tm_dots()
 
+
+
+
+
+
+
+
 #### okay, now do it for the whole country (rip)
 
-buffers <- list()
-perc_calc <- list()
+start_time <- lubridate::now()
+# buffers <- list()
+# perc_calc <- list()
+# ppps_1mi_buffer <- list()
+# ppps_buffer_overlap <- list()
+start_time_batch <- now()
+end_time_batch <- ""
+
 batch_cutpoints <- c(eji_census_tracts_transformed$geoid[c(seq(0, length(
   unique(eji_census_tracts_transformed$geoid)
 ), 1000))])
 
-for(i in unique(eji_census_tracts_transformed$geoid)){
+
+for (i in unique(eji_census_tracts_transformed$geoid[which(!eji_census_tracts_transformed$geoid %in% perc_tract_pfas$geoid)])) {
   
-  #if(!i %in% c(perc_tract_pfas$geoid)){
-    
-    ppps_select <- eji_census_tracts_transformed %>% 
-      filter(geoid == i)
-    
-    buffers[[i]] <- st_intersection(ppps_buffer_overlap, ppps_select)
-    
-    perc_calc[[i]] <- st_area(buffers[[i]])/st_area(ppps_select)
-  #}
   
-  if(i %in% batch_cutpoints){
-    print(paste0("batch ", which(batch_cutpoints %in% i)," of ", length(batch_cutpoints), " complete"))
-    #beepr::beep(sound = 10)
+  ppps_1mi_buffer[[i]] <- ppps_salvatore_tract %>%
+    filter(geoid == i) %>% 
+    st_buffer(1609.34)
+  
+  ppps_buffer_overlap[[i]] <- ppps_1mi_buffer[[i]] %>% 
+    st_union() %>% 
+    st_make_valid()
+  
+  tract_select <- eji_census_tracts_transformed %>%
+    filter(geoid == i)
+  
+  buffers[[i]] <-
+    st_intersection(ppps_buffer_overlap[[i]], tract_select)
+  
+  perc_calc[[i]] <- st_area(buffers[[i]]) / st_area(tract_select)
+  
+  if (i %in% batch_cutpoints) {
+    end_time_batch <- now()
+    print(paste0(
+      "batch ",
+      which(batch_cutpoints %in% i),
+      " of ",
+      length(batch_cutpoints),
+      " complete in ", 
+      as.duration(interval(start_time_batch, end_time_batch)), 
+      " approximately ", 
+      as.duration(interval(start_time_batch, end_time_batch))*(length(batch_cutpoints)-which(batch_cutpoints %in% i)),
+      " remaining"
+    ))
+    beepr::beep(sound = 10)
+    start_time_batch <- now()
   }
+  
+  
 }
 
 beepr::beep(sound = 10)
+# end_time <- lubridate::now()
+# print(lubridate::now())
+# print(as.duration(interval(start_time, end_time)))
 
 perc_tract_pfas <- perc_calc[lapply(perc_calc, length) > 0] %>% 
   bind_rows() %>% 
@@ -210,11 +250,11 @@ ppps_perc <- eji_census_tracts_transformed %>%
   left_join(perc_tract_pfas, by = "geoid") %>% 
   mutate(perc_area_pfas = units::drop_units(perc_area_pfas))
 
-ggplot(ppps_perc, aes(fill = perc_area_pfas)) + 
-  geom_sf() +
-  scale_fill_distiller(palette = "PuRd", direction= 1)
-
-beepr::beep(10)
+# ggplot(ppps_perc, aes(fill = perc_area_pfas)) + 
+#   geom_sf() +
+#   scale_fill_distiller(palette = "PuRd", direction= 1)
+# 
+# beepr::beep(10)
 
 
 # tm_shape(eji_census_tracts_transformed) + 
