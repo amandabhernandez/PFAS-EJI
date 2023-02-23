@@ -184,6 +184,8 @@ tm_shape(ppps_sa_perc) +
 
 
 #### okay, now do it for the whole country (rip)
+#### 
+load("data/processed/ppps_w_buffer_perc_tract_intersecting.RData")
 
 start_time <- lubridate::now()
 # buffers <- list()
@@ -192,30 +194,38 @@ start_time <- lubridate::now()
 # ppps_buffer_overlap <- list()
 start_time_batch <- now()
 end_time_batch <- ""
+# perc_tract_pfas <- data.frame(geoid = c(""), geometry = c(""))
 
 batch_cutpoints <- c(eji_census_tracts_transformed$geoid[c(seq(0, length(
-  unique(eji_census_tracts_transformed$geoid)
-), 1000))])
+  unique(eji_census_tracts_transformed$geoid)), 1000))])
 
 
-for (i in unique(eji_census_tracts_transformed$geoid[which(!eji_census_tracts_transformed$geoid %in% perc_tract_pfas$geoid)])) {
+
+
+for (i in unique(eji_census_tracts_transformed$geoid[which(!eji_census_tracts_transformed$geoid %in% geoids_completed)])) {
   
+  geoids_completed <- append(geoids_completed, i)
   
-  ppps_1mi_buffer[[i]] <- ppps_salvatore_tract %>%
-    filter(geoid == i) %>% 
+  ppps_1mi_buffer[[error_tract]] <- ppps_salvatore_tract %>%
+    filter(geoid == error_tract) %>% 
     st_buffer(1609.34)
   
-  ppps_buffer_overlap[[i]] <- ppps_1mi_buffer[[i]] %>% 
-    st_union() %>% 
-    st_make_valid()
+  if(!is_empty(ppps_1mi_buffer[[i]]$geometry)){
   
-  tract_select <- eji_census_tracts_transformed %>%
-    filter(geoid == i)
+    ppps_buffer_overlap[[error_tract]] <- ppps_1mi_buffer[[error_tract]] %>% 
+      st_union() %>% 
+      st_make_valid()
+    
+    tract_select <- eji_census_tracts_transformed %>%
+      filter(geoid == error_tract)
+    
+    buffers[[error_tract]] <-
+      st_intersection(ppps_buffer_overlap[[i]], tract_select)
+    
+    perc_calc[[error_tract]] <- st_area(buffers[[error_tract]]) / st_area(tract_select)
+    
   
-  buffers[[i]] <-
-    st_intersection(ppps_buffer_overlap[[i]], tract_select)
-  
-  perc_calc[[i]] <- st_area(buffers[[i]]) / st_area(tract_select)
+  }
   
   if (i %in% batch_cutpoints) {
     end_time_batch <- now()
@@ -234,13 +244,46 @@ for (i in unique(eji_census_tracts_transformed$geoid[which(!eji_census_tracts_tr
     start_time_batch <- now()
   }
   
-  
+
 }
 
-beepr::beep(sound = 10)
-# end_time <- lubridate::now()
-# print(lubridate::now())
-# print(as.duration(interval(start_time, end_time)))
+
+# manually fix a tract that throws an error -- go back and figure out the 
+# sf_use_s2 on/off situation -- this seemed helpful: https://r-spatial.org/book/07-Introsf.html#ellipsoidal-coordinates
+
+# tm_shape(tract_select) + 
+#   tm_polygons() + 
+#   tm_shape(ppps_buffer_overlap[[error_tract]]) +
+#   tm_polygons(alpha = 0.8, col = "purple") + 
+#   tm_shape(st_intersection(ppps_buffer_overlap[[error_tract]], tract_select)) + 
+#   tm_polygons()
+
+error_tract <- "36087011602"
+#error: 36087011602
+#Error in wk_handle.wk_wkb(wkb, s2_geography_writer(oriented = oriented,  : 
+#Loop 0 is not valid: Edge 342 is degenerate (duplicate vertex)
+
+sf_use_s2(FALSE)
+
+ppps_1mi_buffer[[error_tract]] <- ppps_salvatore_tract %>%
+  filter(geoid == error_tract) %>% 
+  st_buffer(1609.34)
+
+ppps_buffer_overlap[[error_tract]] <- ppps_1mi_buffer[[error_tract]] %>% 
+  st_union() %>% 
+  st_make_valid()
+
+tract_select <- eji_census_tracts_transformed %>%
+  filter(geoid == error_tract)
+
+buffers[[error_tract]] <-
+  st_intersection(ppps_buffer_overlap[[error_tract]], tract_select)
+
+perc_calc[[error_tract]] <- st_area(buffers[[error_tract]]) / st_area(tract_select)
+
+sf_use_s2(TRUE)
+
+
 
 perc_tract_pfas <- perc_calc[lapply(perc_calc, length) > 0] %>% 
   bind_rows() %>% 
@@ -248,7 +291,9 @@ perc_tract_pfas <- perc_calc[lapply(perc_calc, length) > 0] %>%
 
 ppps_perc <- eji_census_tracts_transformed %>% 
   left_join(perc_tract_pfas, by = "geoid") %>% 
-  mutate(perc_area_pfas = units::drop_units(perc_area_pfas))
+  mutate(perc_area_pfas = units::drop_units(perc_area_pfas),
+         perc_area_pfas_0 = case_when(is.na(perc_area_pfas) ~ 0,
+                                    TRUE ~ perc_area_pfas))
 
 # ggplot(ppps_perc, aes(fill = perc_area_pfas)) + 
 #   geom_sf() +
@@ -261,12 +306,70 @@ ppps_perc <- eji_census_tracts_transformed %>%
 #   tm_polygons() + 
 #   tm_shape(ppps_sa_perc) + 
 #   tm_polygons("perc_area_pfas", palette = "PuRd")
-# 
 
 
 
-save(ppps_perc, 
+save(perc_tract_pfas, ppps_perc, 
      file = "data/processed/ppps_w_buffer_perc_tract_intersecting.RData")
+
+################################################################################
+# 5. LOOK AT PERC OVERLAP   ####
+################################################################################
+
+gtsummary::tbl_summary(ppps_perc %>% 
+                         st_drop_geometry(), 
+                       include = "perc_area_pfas_0",
+                       type = list(everything() ~ "continuous2"),
+                           statistic = list(
+                             everything() ~ c("{mean} ({var})",
+                                              "{median} ({p25}, {p75})",
+                                              "{p80}",
+                                              "{p85}",
+                                              "{p90}",
+                                              "{p95}",
+                                              "{p99}")
+                           ))
+
+summary(ppps_perc$perc_area_pfas_0)
+
+
+
+
+ggplot(ppps_perc, aes(x = perc_area_pfas)) + 
+  geom_histogram(aes(y = after_stat(density)),
+                 color = "black",
+                 fill = "white",
+                 bins = 30) +
+  geom_density(fill = "red", alpha = 0.25) + 
+  ggtitle("Distribution of perc_area_pfas for census tracts with a PFAS point source")
+
+ggplot(ppps_perc, aes(x = perc_area_pfas_0)) + 
+  geom_histogram(aes(y = after_stat(density)),
+                 color = "black",
+                 fill = "white",
+                 bins = 30) +
+  geom_density(fill = "red", alpha = 0.25) + 
+  ggtitle("Distribution of perc_area_pfas for all census tracts in EJI")
+
+
+ggplot(ppps_perc, aes(x = 1, y = perc_area_pfas)) %>%  
+  sina_boxplot()
+
+ppps_perc %>% 
+  filter(!is.na(StateAbbr)) %>% 
+  ggplot(aes(fill = perc_area_pfas)) +
+  geom_sf() +
+  scale_fill_distiller(palette = "PuRd", direction= 1)
+
+beepr::beep(10)
+
+ggsave("output/figures/perc_area_pfas_map.png", height = 20, width = 30)
+
+
+
+tm_shape(ppps_perc) +
+  tm_polygons("perc_area_pfas", palette = "PuRd")
+
 
 ################################################################################
 # X. DROP SPATIAL DATA FOR ANALYSIS   ####
@@ -286,7 +389,12 @@ ppps_eh249_tract_df <- st_drop_geometry(ppps_eh249_tract) %>%
 eji_tracts_df <- st_drop_geometry(eji_spatial_tidy)  %>% 
   distinct()
 
-save(ppps_salvatore_tract_df, ppps_eh249_tract_df, eji_tracts_df, 
+
+ppps_perc_df <- st_drop_geometry(ppps_perc)  %>% 
+  distinct()
+
+save(ppps_salvatore_tract_df, ppps_eh249_tract_df, 
+     eji_tracts_df, ppps_perc_df,
      file = "data/processed/all_ppps_WOspatial_1c_output.RData")
 
 
