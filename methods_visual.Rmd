@@ -1,0 +1,285 @@
+---
+title: "PFAS-EJI Update"
+author: "A. Hernandez"
+date: "2023-02-22"
+output: 
+  html_document:
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	fig.width = 10,
+	message = FALSE,
+	warning = FALSE
+)
+pacman::p_load(tidyverse, gtsummary, sf, tmap)
+
+source("scripts/0 - setup.R")
+load("data/processed/all_ppps_1a_output.RData")
+load("data/processed/eji_spatial_1b_output.RData")
+load("data/processed/all_ppps_spatial_1c_output.RData")
+load("data/processed/all_ppps_WOspatial_1c_output.RData")
+tmap_mode("view")
+
+```
+
+# Methods
+
+## PFAS Analytic Tools
+
+After processing the data from the PFAS Analytic Tools, I ended up with a list of ~35,000 potential/known PFAS sources. To account for differences in census tract size, I followed the EJI method for quantifying the proximity to a point source, which is as follows: 
+
+1.  Transform lat/long coordinates for each point source into a spatial object
+2.  Add a 1-mile buffer to the point source
+3.  Combine the overlapping buffers
+4.  Calculate the percent of each census tract that overlaps with a buffer. To do this, we essentially loop through each census tract and:
+    1.  cut out the part of the polygon buffer that doesn't overlap with the census tract polygon.
+
+    2.  take the area of the polygon buffer that remains and divide it by the total area of the census tract polygon.
+
+<br> <br>
+
+### Example:
+
+The following sections walk through this step by step for all census tracts within Bexar County, TX.
+
+```{r}
+
+ppps_sa <- eji_census_tracts_transformed %>%
+  filter(county == "Bexar County" & state == "TX") 
+
+ppps_sa_select <- ppps_sa %>% 
+    filter(geoid == "48029980100")
+
+pfas_sa <- ppps_salvatore_tract %>%
+  filter(city == "SAN ANTONIO" & state.x == "TX") 
+
+tm_shape(ppps_sa) +
+  tm_polygons(alpha = 0.8) + 
+  tm_shape(pfas_sa) +
+  tm_dots()
+
+
+```
+
+#### Adding a buffer
+
+The map is centered around the census tract with a geoid: "48029980100", but the map is interactive, so you can zoom out and look at other census tracts in Bexar County as well.
+
+```{r}
+
+ppps_1mi_buffer_sa <- pfas_sa %>%
+    st_buffer(1609.34)
+
+tm_shape(ppps_sa, bbox = st_bbox(ppps_sa_select)) +
+  tm_polygons(alpha = 0.8) + 
+  tm_shape(ppps_1mi_buffer_sa) +
+  tm_polygons(alpha = 0.8, col = "red") +
+  tm_shape(pfas_sa) +
+  tm_dots()
+
+
+```
+
+#### Combine the buffer
+
+```{r}
+
+ppps_buffer_overlap_sa <- ppps_1mi_buffer_sa %>% 
+  st_union() %>% 
+  st_make_valid()
+
+tm_shape(ppps_sa, bbox = st_bbox(ppps_sa_select)) + 
+  tm_polygons() + 
+  tm_shape(ppps_buffer_overlap_sa) +
+  tm_polygons(alpha=0.8, col = "turquoise") +
+  tm_shape(ppps_1mi_buffer_sa) +
+  tm_dots(alpha=0.8)
+
+```
+
+#### Cut out the part of the buffer that does not intersect with a given census tract
+
+```{r}
+
+buffers_sa <- st_intersection(ppps_buffer_overlap_sa, ppps_sa_select)
+
+tm_shape(ppps_sa, bbox = ppps_sa_select) + 
+  tm_polygons() + 
+  tm_shape(buffers_sa) + 
+  tm_polygons(alpha=0.8, col = "turquoise", border.col = "red") +
+  tm_shape(ppps_1mi_buffer_sa) +
+  tm_dots(alpha=0.8)
+
+
+```
+
+#### Then calculate the percent of the census tract that intersects with a PFAS point source buffer
+
+$$ 
+\text{perc_area_pfas}_i = \dfrac{\sum\text{area}(\text{PFAS point source with 1 mile buffer that overlaps with census tract i})}{\text{area}(\text{census tract i})}*100\%
+$$
+
+```{r}
+
+buffers_sa <- list()
+perc_calc_sa <- list()
+for(i in unique(ppps_sa$geoid)){
+  
+  ppps_sa_select2 <- ppps_sa %>% 
+    filter(geoid == i)
+  
+  buffers_sa[[i]] <- st_intersection(ppps_buffer_overlap_sa, ppps_sa_select2)
+  
+  perc_calc_sa[[i]] <- st_area(buffers_sa[[i]])/st_area(ppps_sa_select2)
+  
+}
+
+buffers_diff_sa <- buffers_sa[lapply(buffers_sa, length) > 0] %>% 
+  bind_rows() %>% 
+  pivot_longer(names_to = "geoid", values_to = "geometry", everything()) %>% 
+  st_as_sf()
+
+perc_tract_pfas_sa <- perc_calc_sa[lapply(perc_calc_sa, length) > 0] %>% 
+  bind_rows() %>% 
+  pivot_longer(names_to = "geoid", values_to = "perc_area_pfas", everything()) 
+
+ppps_sa_perc <- ppps_sa %>% 
+  left_join(perc_tract_pfas_sa, by = "geoid")  %>% 
+  mutate(perc_area_pfas = units::drop_units(perc_area_pfas))
+
+tm_shape(ppps_sa_perc, bbox = st_bbox(ppps_sa_select)) + 
+  tm_polygons("perc_area_pfas", palette = "PuRd") + 
+  tm_shape(buffers_diff_sa) + 
+  tm_polygons(border.col = "turquoise", alpha = 0) +
+  tm_shape(ppps_1mi_buffer_sa) +
+  tm_dots(alpha=0.8)
+
+
+```
+
+### Summary of perc_area_pfas
+
+Summary stats for the percent of a census tract that falls within a 1-mile radius of a PFAS point source.
+```{r}
+gtsummary::tbl_summary(ppps_perc_df, 
+                       include = "perc_area_pfas_0",
+                       type = list(everything() ~ "continuous2"),
+                           statistic = list(
+                             everything() ~ c("{mean} ({var})",
+                                              "{median} ({p25}, {p75})",
+                                              "{p90}",
+                                              "{p95}",
+                                              "{p99}")
+                           )) %>% 
+  tbl_theme(gt = TRUE)
+
+```
+<br>
+<br>
+
+It's kind of hard to see what is going on in census tracts that do overlap with a PFAS point source buffer because there are so many census tracts that don't... 
+<br>
+<br>
+here's the distribution of the variable with and without those census tracts that have no PFAS point source: 
+
+```{r, fig.width = 10}
+
+perc_area_plot <- ggplot(ppps_perc_df, aes(x = perc_area_pfas)) + 
+  geom_histogram(aes(y = after_stat(density)),
+                 color = "black",
+                 fill = "white",
+                 bins = 30) +
+  geom_density(fill = "red", alpha = 0.25) + 
+  labs(title = "Distribution of perc_area_pfas for\ncensus tracts with a PFAS point source",
+       x = "percent of census tract that falls within a\n1-mile radius of a PFAS point source (not including tracts with 0%)")
+
+perc_area_plot0 <- ggplot(ppps_perc_df, aes(x = perc_area_pfas_0)) + 
+  geom_histogram(aes(y = after_stat(density)),
+                 color = "black",
+                 fill = "white",
+                 bins = 30) +
+  geom_density(fill = "red", alpha = 0.25) + 
+  labs(title = "Distribution of perc_area_pfas for\nall census tracts in EJI",
+       x = "percent of census tract that falls within a\n1-mile radius of a PFAS point source")
+
+cowplot::plot_grid(perc_area_plot0, perc_area_plot)
+
+
+```
+
+<!--
+```{r}
+ppps_perc_df %>% 
+  pivot_longer(names_to = "includes0", values_to = "perc_area_pfas", c("perc_area_pfas", "perc_area_pfas_0")) %>%
+  ggplot(aes(x = includes0, y = perc_area_pfas)) %>%  
+  sina_boxplot() + 
+  labs(title = "Sina plots of perc_area_pfas for all census tracts in EJI (with and without census tracts with 0%)",
+       x = "")
+
+```
+-->
+
+
+````{=html}
+<!-- ## EJI 
+
+
+## Extra stuff
+
+```{r include = FALSE}
+# 
+# gtsummary::tbl_summary(
+#   eji_w_ppps_eh249,
+#   include = "n_ppps", 
+#   type = list(everything() ~ 'continuous2'),
+#   statistic = list(everything() ~ c(
+#     "{mean} ({min} - {max})",
+#     "{median} ({p25}, {p75})"
+#   ))
+# )
+# 
+# gtsummary::tbl_summary(
+#   eji_w_ppps_salvatore,
+#   include = "n_ppps", 
+#   type = list(everything() ~ 'continuous2'),
+#   statistic = list(everything() ~ c(
+#     "{mean} ({min} - {max})",
+#     "{median} ({p25}, {p75})"
+#   ))
+# )
+# 
+# tbl_merge(list(
+#   tbl_summary(
+#     eji_w_ppps_salvatore,
+#     include = "n_ppps",
+#     type = list(everything() ~ 'continuous2'),
+#     statistic = list(
+#       everything() ~ c("{mean} ({min} - {max})",
+#                        "{median} ({p25}, {p75})")
+#     )
+#   ),
+#   tbl_summary(
+#     eji_w_ppps_eh249,
+#     include = "n_ppps",
+#     type = list(everything() ~ 'continuous2'),
+#     statistic = list(
+#       everything() ~ c("{mean} ({min} - {max})",
+#                        "{median} ({p25}, {p75})")
+#     )
+#   )
+# ))
+# 
+# 
+# ggplot(eji_w_ppps_eh249, aes(x = "eh249", y = n_ppps)) +
+#   geom_boxplot()
+
+```
+
+```{r}
+
+```
+
+ -->
+````
