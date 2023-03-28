@@ -42,6 +42,7 @@ ppps_eh249_tract <- all_ppps_eh249 %>%
 save(eji_census_tracts_transformed, ppps_salvatore_tract, ppps_eh249_tract,
      file = "data/processed/all_ppps_spatial_1c_output.RData")
 
+# load("data/processed/all_ppps_spatial_1c_output.RData")
 
 ################################################################################
 # 2. ADD 1 MILE BUFFER   ####
@@ -79,6 +80,11 @@ ppps_1mi_buffer <- ppps_salvatore_tract %>%
 
 beepr::beep(10)
 
+#save as RData file so it can be opened in next script 
+save(ppps_1mi_buffer,
+     file = "data/processed/step1_ppps_1mi_buffer.RData")
+
+
 # tm_shape(ppps_1mi_buffer$buffer) +
 #   tm_polygons(alpha=0.8, col = "red") +
 #   tm_shape(ppps_1mi_buffer$geometry) +
@@ -108,7 +114,11 @@ tm_shape(ppps_sa) +
 #### okay, now do it for the whole country (rip)
 
 ppps_buffer_overlap <- ppps_1mi_buffer %>% 
-  st_union() %>% 
+  st_union() 
+
+beepr::beep(10)
+
+ppps_buffer_overlap <- ppps_buffer_overlap %>% 
   st_make_valid()
 
 beepr::beep(10)
@@ -185,13 +195,14 @@ tm_shape(ppps_sa_perc) +
 
 #### okay, now do it for the whole country (rip)
 #### 
-load("data/processed/ppps_w_buffer_perc_tract_intersecting.RData")
+# load("data/processed/ppps_w_buffer_perc_tract_intersecting.RData")
 
 start_time <- lubridate::now()
-# buffers <- list()
-# perc_calc <- list()
-# ppps_1mi_buffer <- list()
-# ppps_buffer_overlap <- list()
+buffers <- list()
+perc_calc <- list()
+ppps_1mi_buffer_list <- list()
+ppps_buffer_overlap_list <- list()
+geoids_completed <- list()
 start_time_batch <- now()
 end_time_batch <- ""
 # perc_tract_pfas <- data.frame(geoid = c(""), geometry = c(""))
@@ -206,23 +217,23 @@ for (i in unique(eji_census_tracts_transformed$geoid[which(!eji_census_tracts_tr
   
   geoids_completed <- append(geoids_completed, i)
   
-  ppps_1mi_buffer[[error_tract]] <- ppps_salvatore_tract %>%
-    filter(geoid == error_tract) %>% 
+  ppps_1mi_buffer_list[[i]] <- ppps_salvatore_tract %>%
+    filter(geoid == i) %>% 
     st_buffer(1609.34)
   
-  if(!is_empty(ppps_1mi_buffer[[i]]$geometry)){
+  if(!is_empty(ppps_1mi_buffer_list[[i]]$geometry)){
   
-    ppps_buffer_overlap[[error_tract]] <- ppps_1mi_buffer[[error_tract]] %>% 
+    ppps_buffer_overlap_list[[i]] <- ppps_1mi_buffer_list[[i]] %>% 
       st_union() %>% 
       st_make_valid()
     
     tract_select <- eji_census_tracts_transformed %>%
-      filter(geoid == error_tract)
+      filter(geoid == i)
     
-    buffers[[error_tract]] <-
-      st_intersection(ppps_buffer_overlap[[i]], tract_select)
+    buffers[[i]] <-
+      st_intersection(ppps_buffer_overlap_list[[i]], tract_select)
     
-    perc_calc[[error_tract]] <- st_area(buffers[[error_tract]]) / st_area(tract_select)
+    perc_calc[[i]] <- st_area(buffers[[i]]) / st_area(tract_select)
     
   
   }
@@ -248,6 +259,12 @@ for (i in unique(eji_census_tracts_transformed$geoid[which(!eji_census_tracts_tr
 }
 
 
+save(geoids_completed, ppps_1mi_buffer_list, ppps_buffer_overlap_list, 
+     tract_select, buffers, perc_calc,
+     file = "data/processed/buffering.RData")
+
+
+
 # manually fix a tract that throws an error -- go back and figure out the 
 # sf_use_s2 on/off situation -- this seemed helpful: https://r-spatial.org/book/07-Introsf.html#ellipsoidal-coordinates
 
@@ -265,11 +282,11 @@ error_tract <- "36087011602"
 
 sf_use_s2(FALSE)
 
-ppps_1mi_buffer[[error_tract]] <- ppps_salvatore_tract %>%
+ppps_1mi_buffer_list[[error_tract]] <- ppps_salvatore_tract %>%
   filter(geoid == error_tract) %>% 
   st_buffer(1609.34)
 
-ppps_buffer_overlap[[error_tract]] <- ppps_1mi_buffer[[error_tract]] %>% 
+ppps_buffer_overlap_list[[error_tract]] <- ppps_1mi_buffer_list[[error_tract]] %>% 
   st_union() %>% 
   st_make_valid()
 
@@ -277,7 +294,7 @@ tract_select <- eji_census_tracts_transformed %>%
   filter(geoid == error_tract)
 
 buffers[[error_tract]] <-
-  st_intersection(ppps_buffer_overlap[[error_tract]], tract_select)
+  st_intersection(ppps_buffer_overlap_list[[error_tract]], tract_select)
 
 perc_calc[[error_tract]] <- st_area(buffers[[error_tract]]) / st_area(tract_select)
 
@@ -352,9 +369,6 @@ ggplot(ppps_perc, aes(x = perc_area_pfas_0)) +
   ggtitle("Distribution of perc_area_pfas for all census tracts in EJI")
 
 
-ggplot(ppps_perc, aes(x = 1, y = perc_area_pfas)) %>%  
-  sina_boxplot()
-
 ppps_perc %>% 
   filter(!is.na(StateAbbr)) %>% 
   ggplot(aes(fill = perc_area_pfas)) +
@@ -372,7 +386,7 @@ tm_shape(ppps_perc) +
 
 
 ################################################################################
-# X. DROP SPATIAL DATA FOR ANALYSIS   ####
+# 6. DROP SPATIAL DATA FOR ANALYSIS   ####
 ################################################################################
 
 # now we can drop spatial data because we just need the geoids
