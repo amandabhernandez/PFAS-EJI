@@ -1,0 +1,529 @@
+---
+format: 
+  revealjs:
+      theme: [simple, custom.scss]
+      echo: false
+      slide-number: true
+      smaller: true
+      revealjs-plugins:
+        - confetti
+        - pointer
+execute-dir: project
+execute:
+  freeze: auto 
+---
+
+```{r}
+#| label: load-packages
+#| include: false
+
+library(pacman)
+pacman::p_load(tidyverse, gtsummary, sf, tmap)
+
+# source("scripts/0 - setup.R")
+load("../data/processed/all_ppps_1a_output.RData")
+load("../data/processed/eji_spatial_1b_output.RData")
+load("../data/processed/all_ppps_spatial_1c_output.RData")
+load("../data/processed/all_ppps_WOspatial_1c_output_2023-04-04.RData")
+load("../data/processed/newEJI_wpfasrank_1e_output_2023-04-04.RData")
+
+load("../data/processed/sa_files.RData")
+
+density_plot <- function(ggobj, bin_num = 30){
+  ggobj + 
+    geom_histogram(aes(y = after_stat(density)),
+                   color = "black",
+                   fill = "white",
+                   bins = bin_num) +
+    geom_density(fill = "red", alpha = 0.25)
+}
+
+```
+
+# Exposures to per- and polyfluoroalkyl substances in environmentally overburdened communities {.smaller}
+
+<br>
+A. Hernandez
+<br>
+
+<hr>
+
+<br>
+
+April 11, 2023
+
+
+## Background {.smaller}
+
+<br>
+
+-   PFAS are ubiquitous in the environment, but the scope of contamination in the US is still broadly unknown
+
+## Motivating question {.smaller}
+
+<br>
+
+What are the characteristics of communities that are more exposed to PFAS through drinking water? Are exposures to PFAS in drinking water greater in environmental justice communities? 
+
+## Background cont.  {.smaller}
+
+<br>
+
+-   UCMR3 was the first and only national assessment of PFAS in PWSs to date 
+
+    -   Testing was limited in scope (5 PFAS), high detection limits, not all PWSs represented
+    -   UCMR 5 testing will be more expansive, not completed until 2025
+    -   New EPA NPDWR will require more regular testing for 6 PFAS compounds 
+    
+-   Some states have more expansive testing programs, but this work is incomplete, inconsistent, resource intensive. 
+
+
+## Background cont. {.smaller}
+
+<br>
+
+-   Matching limited PWS monitoring data to demographic information presents a number of challenges, largely due to the lack of availability of information on service area boundaries at a national scale. 
+
+    -   Spatial matching happens at the county level, but PWSs rarely serve an entire county. 
+    
+    
+## Background cont. {.smaller}
+
+<br>
+How else might we assess exposure to PFAS?
+<br>
+
+::: fragment
+-   Proximity to PFAS contamination sites is associated with detections of PFAS in drinking water (Hu et al. 2016)
+-   Consumption of PFAS contaminated drinking water is associated with higher blood levels of PFAS (Post et al. 2021).
+:::
+
+<br>
+
+
+## Background cont. {.smaller}
+
+<br>
+What is considered a "PFAS contamination site"? What facilities are using PFAS? 
+<br>
+
+-   In the absence of comprehensive testing data, communities, researchers, and policymakers have turned to conceptual approaches which precautionarily consider certain types of facilities as “presumptive” or “potential” PFAS point sources 
+
+    -   Presumptive facilities include wastewater treatment plants, current and former military sites, airports, and certain industrial facilities. 
+    
+## Study design/goals {.smaller}
+<br>
+
+Goal: 
+
+-   Assess the relationship between environmentally overburdened communities and PFAS point sources + contamination sites
+
+<br>
+Design: 
+
+-   Aggregate information about PFAS point sources and contamination sites
+-   Match sites to a census tract
+-   Assess socio-demographic and environmental characteristics at the census tract 
+
+
+## PFAS point sources + contamination sites {.smaller}
+
+![](images/pfas_analytic_tools.png){fig-align="center" height="40%"}
+
+
+## PFAS point sources + contamination sites {.smaller}
+
+![](images/included_pfas_analytic_tools.png){fig-align="center" height="40%"}
+
+## Measuring/assessing environmental justice {.smaller}
+
+<br>
+EJ research on exposures to contaminants in drinking water has primarily relied on county-level demographics or has been limited to state-specific assessments for states with more comprehensive water system data.
+
+<br>
+
+This work has historically relied on unidimensional measures of socioeconomic status and race to evaluate disparities in environmental exposures.
+
+
+## Measuring/assessing environmental justice cont. {.smaller}
+<br>
+
+-   The Environmental Justice Index (EJI), developed by CDC and ATSDR, is a multi-dimensional index that accounts for cumulative exposures and disproportionate health outcomes 
+
+-   Compares census-tract level environmental, social, and health-based community indicators 
+
+-   Unlike EPA’s EJSCREEN and CDC’s Social Vulnerability Index, the EJI quantifies the cumulative impact of environmental burdens on health
+
+-   Created to help identify communities experiencing disproportionate health outcomes associated with environmental exposures
+
+
+
+## Environmental Justice Index {.smaller}
+
+![](images/EJI_indicators.png){fig-align="center" width="10%"}
+
+
+## Environmental Justice Index {.smaller}
+
+<br>
+
+-   The EJI underrepresents the health burden from exposures to contaminants (broadly, including PFAS) in drinking water and exposures to PFAS from other sources
+  
+    -   This is mostly due to spatial mismatches/data incompleteness, but also because PFAS testing is limited and PFAS are generally unregulated/underreported
+    
+-   EJI does incorporate info about TRI reporting facilities (proportion of a census tract that falls within a 1-mile buffer of a TRI facility).
+
+    -   PFAS were added to the TRI program in 2020, however, only 39 facilities reported PFAS emissions in 2020, which is likely a substantial underestimation (Post et al. 2021, Reade et al. 2022).
+
+
+
+## Environmental Justice Index: Environmental Burden Module {.smaller}
+
+<br>
+
+Calculating the Env Burden: 
+
+-   Order the census tracts on a scale from 0 to 100 for a given variable to create a percentile rank for the percentage of tracts equal to or lower than the burden for that variable (0-1 index). 
+
+    -   For variables like TRI sites, the metric is a proximity measure: the percent of the tract within 1-mile of a TRI site
+
+-   An overall rank for each module is created by summing the individual variables within the module and repeating the percentile ranking process.
+
+-   This is repeated again with the other two modules to calculate an EJI Rank 
+
+
+
+## Methods
+
+## PFAS sources {.smaller}
+
+```{r}
+                                              
+tbl_summary(st_drop_geometry(ppps_salvatore_tract) %>% 
+  mutate(dataset = factor(dataset,
+                          labels = c("Part 139 Airports",
+                                     "EPA Stewardship Program Participating Facilities",
+                                     "Facilities in Industries that may be Handling PFAS",
+                                     "Federal Agency Locations with Known or Suspected PFAS Detections",
+                                     "Fire Training Sites",
+                                     "Facilities that Manufacture or Import PFAS",
+                                     "Superfund Sites with PFAS Detections",
+                                     "Known PFAS Spills/Release Incidents"))), 
+  label = dataset ~ "Dataset",
+  include = c("dataset"))
+```
+
+
+
+## PFAS burden estimation  {.smaller}
+
+```{r}
+
+pfas_sa <- ppps_salvatore_tract %>%
+  filter(countyfp == "029" & StateAbbr == "TX")
+
+ppps_sa <- eji_census_tracts_transformed %>%
+  filter(county == "Bexar County" & state == "TX") 
+
+ppps_sa_select <- ppps_sa %>%
+  filter(geoid == "48029980100")
+
+
+ppps_sa_tm <- tm_shape(ppps_sa) +
+  tm_polygons(alpha = 0.8) + 
+  tm_shape(pfas_sa) +
+  tm_dots() 
+
+tmap_leaflet(ppps_sa_tm)
+
+```
+
+
+## PFAS burden estimation: Adding a buffer {.smaller}
+
+```{r}
+
+
+ppps_sa_buffer_tm <- tm_shape(ppps_sa, bbox = st_bbox(ppps_sa_select)) +
+  tm_polygons(alpha = 0.8) +
+  tm_shape(ppps_1mi_buffer_sa) +
+  tm_polygons(alpha = 0.8, col = "turquoise") +
+  tm_shape(pfas_sa) +
+  tm_dots()
+
+tmap_leaflet(ppps_sa_buffer_tm)
+
+```
+
+## PFAS burden estimation: Combine the buffer {.smaller}
+
+```{r}
+
+ppps_sa_comb_buffer_tm <- tm_shape(ppps_sa, bbox = st_bbox(ppps_sa_select)) +
+  tm_polygons(alpha = 0.8) +
+  tm_shape(sa_comb_buffers) +
+  tm_polygons(alpha = 0.8, col = "turquoise") +
+  tm_shape(pfas_sa) +
+  tm_dots()
+
+tmap_leaflet(ppps_sa_comb_buffer_tm)
+
+
+```
+
+## PFAS burden estimation: Find the intersection with a census tracts  {.smaller}
+
+```{r}
+
+ppps_sa_intersect_tm <- tm_shape(ppps_sa, bbox = st_bbox(ppps_sa_select)) +
+  tm_polygons(alpha = 0.8) +
+  tm_shape(sa_comb_buffers) +
+  tm_polygons(alpha = 0.8, col = "turquoise", border.col = "red") +
+  tm_shape(pfas_sa) +
+  tm_dots()
+
+tmap_leaflet(ppps_sa_intersect_tm)
+
+```
+
+## PFAS burden estimation: Calculate % of census tract that intersects with PFAS buffer {.smaller}
+
+$$ 
+\text{perc_area_pfas}_i = \dfrac{\sum\text{area}(\text{PFAS point source with 1 mile buffer that overlaps with census tract i})}{\text{area}(\text{census tract i})}*100\%
+$$
+
+
+## PFAS burden estimation: % of census tract that intersects with PFAS buffer {.smaller}
+
+```{r}
+
+sa_check <- sa_check %>% 
+  mutate(perc_area_pfas = perc_area_pfas*100)
+
+ppps_sa_perc_tm <- tm_shape(sa_check, bbox = st_bbox(ppps_sa_select)) + 
+  tm_polygons("perc_area_pfas", palette = "PuRd") + 
+  tm_shape(sa_comb_buffers) +
+  tm_polygons(alpha = 0.2, col = "turquoise", border.col = "red") +
+  tm_shape(pfas_sa) +
+  tm_dots()
+
+tmap_leaflet(ppps_sa_perc_tm) %>%
+  leaflet::hideGroup(c("sa_comb_buffers", "pfas_sa"))
+
+
+```
+
+## PFAS burden estimation: % of census tract that intersects with PFAS buffer {.smaller}
+
+```{r}
+
+ppps_sa_perc_tm <- tm_shape(sa_check) + 
+  tm_polygons("perc_area_pfas", palette = "PuRd") + 
+  tm_shape(sa_comb_buffers) +
+  tm_polygons(alpha = 0.8, col = "turquoise", border.col = "red") +
+  tm_shape(pfas_sa) +
+  tm_dots()
+
+tmap_leaflet(ppps_sa_perc_tm) %>%
+  leaflet::hideGroup(c("sa_comb_buffers", "pfas_sa"))
+
+```
+
+
+
+## PFAS burden estimation: Percentile rank of % of census tract within 1-mile buffer of PFAS source {.smaller}
+
+```{r}
+
+load("../data/processed/pfas_recalc_spatial.RData")
+
+percentilerank_pfas_bexar <- pfas_recalc_spatial %>%
+  filter(county == "Bexar County" & state == "TX") 
+
+ppps_sa_percentilerank_tm <- tm_shape(percentilerank_pfas_bexar, bbox = st_bbox(ppps_sa_select)) + 
+  tm_polygons("percent_rank_pfas", palette = "PuRd") + 
+  tm_shape(sa_comb_buffers) +
+  tm_polygons(alpha = 0.2, col = "turquoise", border.col = "red") +
+  tm_shape(pfas_sa) +
+  tm_dots()
+
+tmap_leaflet(ppps_sa_percentilerank_tm) %>%
+  leaflet::hideGroup(c("sa_comb_buffers", "pfas_sa"))
+
+```
+
+
+
+## PFAS burden estimation: Distribution {.smaller}
+
+```{r}
+
+percentilerank_pfas <- percentilerank_pfas %>%
+  mutate(perc_area_pfas_0 = perc_area_pfas_0*100)
+
+perc_area_pfas_density <- ggplot(percentilerank_pfas, aes(x =  perc_area_pfas_0)) %>% 
+  density_plot() + 
+  xlab("% of census tract within\n1-mile of a PFAS source") + 
+  theme_bw()
+
+perc_rank_pfas_density <- ggplot(percentilerank_pfas, aes(x =  percent_rank_pfas)) %>% 
+  density_plot() + 
+  xlab("Percentile rank of proportion of census tract\nwithin 1-mile buffer of a PFAS source") + 
+  theme_bw()
+
+cowplot::plot_grid(perc_area_pfas_density, perc_rank_pfas_density)
+
+```
+
+
+
+## PFAS burden map {.smaller}
+
+![](images/REVISED2_percent_area_pfas_0_map_2023-04-11.png){fig-align="center" height="40%"}
+
+## EJI 
+
+
+## Table 2
+
+```{r}
+
+load("../data/processed/pfas_mod_formatting.RData")
+
+table1a <- tbl_summary(pfas_mod_data_format,
+            include = c("% of census tract within a 1-mile buffer of a PFAS source", 
+                        "Sum of the HVM, EBM, and SVM module percentile ranks", 
+                        "Sum of the EBM variable percentile ranks", 
+                        "Sum of the SVM variable percentile ranks",
+                        "Total number of HVM tertile flags"),
+            type = list(c("% of census tract within a 1-mile buffer of a PFAS source", 
+                          "Sum of the HVM, EBM, and SVM module percentile ranks", 
+                          "Sum of the EBM variable percentile ranks", 
+                          "Sum of the SVM variable percentile ranks",
+                          "Total number of HVM tertile flags") ~ 'continuous2'),
+            statistic = list(all_continuous() ~ c("{median} ({p25} - {p75})", 
+                                                  "{mean} ({sd})"))) 
+
+table1b <- tbl_summary(pfas_mod_data_format, 
+                       by = c("Number of PFAS point sources"), 
+                       include = c("Sum of the HVM, EBM, and SVM module percentile ranks", 
+                                   "Sum of the EBM variable percentile ranks", 
+                                   "Sum of the SVM variable percentile ranks",
+                                   "Total number of HVM tertile flags"),
+                       type = list(c("Sum of the HVM, EBM, and SVM module percentile ranks", 
+                                     "Sum of the EBM variable percentile ranks", 
+                                     "Sum of the SVM variable percentile ranks",
+                                     "Total number of HVM tertile flags") ~ 'continuous2'),
+                       statistic = list(all_continuous() ~ c("{median} ({p25} - {p75})", 
+                                                             "{mean} ({sd})"))) %>% 
+  add_p()
+
+
+tbl_merge(list(table1a, table1b), 
+          tab_spanner = c("All Census Tracts", "Number of PFAS point sources")) 
+
+```
+
+
+<!--
+
+## Table 2a
+
+```{r}
+load("../data/processed/pfas_mod_formatting.RData")
+
+tbl_summary(pfas_mod_data_format,
+            include = c("% of census tract within a 1-mile buffer of a PFAS source", 
+                        "Sum of the HVM, EBM, and SVM module percentile ranks", 
+                        "Sum of the EBM variable percentile ranks", 
+                        "Sum of the SVM variable percentile ranks",
+                        "Total number of HVM tertile flags"),
+            type = list(c("% of census tract within a 1-mile buffer of a PFAS source", 
+                          "Sum of the HVM, EBM, and SVM module percentile ranks", 
+                          "Sum of the EBM variable percentile ranks", 
+                          "Sum of the SVM variable percentile ranks",
+                          "Total number of HVM tertile flags") ~ 'continuous2'),
+            statistic = list(all_continuous() ~ c("{median} ({p25} - {p75})", 
+                                                  "{mean} ({sd})"))) 
+
+
+```
+
+
+## Table 2b 
+
+```{r}
+tbl_summary(pfas_mod_data_format, 
+                       by = c("Number of PFAS point sources"), 
+                       include = c("Sum of the HVM, EBM, and SVM module percentile ranks", 
+                                   "Sum of the EBM variable percentile ranks", 
+                                   "Sum of the SVM variable percentile ranks",
+                                   "Total number of HVM tertile flags"),
+                       type = list(c("Sum of the HVM, EBM, and SVM module percentile ranks", 
+                                     "Sum of the EBM variable percentile ranks", 
+                                     "Sum of the SVM variable percentile ranks",
+                                     "Total number of HVM tertile flags") ~ 'continuous2'),
+                       statistic = list(all_continuous() ~ c("{median} ({p25} - {p75})", 
+                                                             "{mean} ({sd})"))) %>% 
+  add_p()
+
+```
+
+-->
+
+## Table 3: Univariate regression {.smaller}
+
+```{r}
+pfas_mod_data_format %>% 
+  select(hasPFAS,`Sum of the EBM variable percentile ranks`,
+           `Sum of the SVM variable percentile ranks`,
+           `Total number of HVM tertile flags`) %>% 
+  tbl_uvregression(method = glm,
+                   y = hasPFAS, 
+                   method.args = list(family = binomial),
+                   exponentiate = TRUE)
+
+```
+
+## Table 4 {.smaller}
+
+```{r}
+#multivariate regression
+mod3 <- glm(hasPFAS ~ `Sum of the EBM variable percentile ranks` + 
+              `Sum of the SVM variable percentile ranks` + 
+              `Total number of HVM tertile flags`, 
+            data = pfas_mod_data_format, family = binomial())
+
+gtsummary::tbl_regression(mod3, exponentiate = TRUE)
+```
+
+
+## Recalculating the EJI 
+
+
+
+## Table 5 {.smaller}
+
+```{r}
+
+tbl_summary(pfas_mod_data_format,
+                       include = c("Percentile rank of proportion of census tract within 1-mile buffer of a PFAS source",
+                                   "Sum of the HVM, EBM, and SVM module percentile ranks after accounting for PFAS sources", 
+                                   "Sum of the EBM variable percentile ranks after accounting for PFAS sources", 
+                                   "Change in EJI sum",
+                                   "Change in EBM sum",
+                                   "Change in EBM rank"),
+                       type = list(c("Percentile rank of proportion of census tract within 1-mile buffer of a PFAS source",
+                                     "Sum of the HVM, EBM, and SVM module percentile ranks after accounting for PFAS sources", 
+                                     "Sum of the EBM variable percentile ranks after accounting for PFAS sources", 
+                                     "Change in EJI sum",
+                                     "Change in EBM sum",
+                                     "Change in EBM rank") ~ 'continuous2'),
+                       statistic = list(all_continuous() ~ c("{median} ({p25} - {p75})", 
+                                                             "{mean} ({sd})"))) 
+
+
+```
+
+
+<!-- ## EAT MY FARTS KATE --> 

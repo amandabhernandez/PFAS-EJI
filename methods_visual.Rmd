@@ -16,10 +16,10 @@ knitr::opts_chunk$set(
 pacman::p_load(tidyverse, gtsummary, sf, tmap)
 
 source("scripts/0 - setup.R")
-load("data/processed/all_ppps_1a_output.RData")
-load("data/processed/eji_spatial_1b_output.RData")
-load("data/processed/all_ppps_spatial_1c_output.RData")
-load("data/processed/all_ppps_WOspatial_1c_output.RData")
+# load("data/processed/all_ppps_1a_output.RData")
+# load("data/processed/eji_spatial_1b_output.RData")
+# load("data/processed/all_ppps_spatial_1c_output.RData")
+# load("data/processed/all_ppps_WOspatial_1c_output.RData")
 tmap_mode("view")
 
 ```
