@@ -64,7 +64,7 @@ for (i in unique(eji_census_tracts_transformed$geoid[which(!eji_census_tracts_tr
     ))
     
     save(geoids_completed, tract_select, buffers, perc_calc,
-         file = paste0("data/processed/buffering_batch", n_completed/1000, "_",Sys.time(),".RData"))
+         file = paste0("data/processed/buffering_batch", n_completed/1000, "_", Sys.time(),".RData"))
     
     beepr::beep(sound = 10)
     start_time_batch <- now()
