@@ -1,0 +1,508 @@
+---
+format: 
+  revealjs:
+      smaller: true
+      theme: [simple, custom.scss]
+      echo: false
+      slide-number: true
+      revealjs-plugins:
+        - confetti
+        - pointer
+execute-dir: project
+execute:
+  freeze: auto 
+---
+
+```{r}
+#| label: load-packages
+#| include: false
+
+library(pacman)
+pacman::p_load(tidyverse, gtsummary, sf, tmap)
+
+# source("scripts/0 - setup.R")
+load("../data/processed/all_ppps_1a_output.RData")
+load("../data/processed/eji_spatial_1b_output.RData")
+load("../data/processed/all_ppps_spatial_1c_output.RData")
+load("../data/processed/all_ppps_WOspatial_1c_output_2023-04-04.RData")
+load("../data/processed/newEJI_wpfasrank_1e_output_2023-04-04.RData")
+
+load("../data/processed/sa_files.RData")
+load("../data/processed/pfas_mod_formatting.RData")
+
+
+theme_set(theme_bw())
+
+density_plot <- function(ggobj, bin_num = 30){
+  ggobj + 
+    geom_histogram(aes(y = after_stat(density)),
+                   color = "black",
+                   fill = "white",
+                   bins = bin_num) +
+    geom_density(fill = "red", alpha = 0.25)
+}
+
+sina_boxplot <- function(ggobj){
+    ggobj + 
+    ggforce::geom_sina(alpha = 0.5, color = "lightgrey", show.legend = TRUE) +
+    geom_boxplot(width = 0.1, guides = FALSE, outlier.shape = NA, 
+                 size = 1, color = "#3a3838", alpha = 0.5) 
+}
+
+
+eji_codebook <- read_csv("../data/raw/EJI/eji_codebook/files/output/eji_codebook.csv") 
+
+eji_codebook_revised <- eji_codebook %>% 
+  mutate(var_desc = case_when(str_detect(variable_name, "(?<=_).*") ~ str_extract(variable_name, "(?<=_).*"),
+                              TRUE ~ variable_name),
+         var_metric = str_extract(variable_name, "^.{3}(?=_)"))
+
+
+
+```
+
+# Exposures to per- and polyfluoroalkyl substances in environmentally overburdened communities {.smaller}
+
+<br> 
+
+A. Hernandez 
+
+
+<hr>
+
+April 11, 2023
+
+## Study design/goals
+
+::: {.smallish}
+
+<br>
+
+Goal:
+
+-   Assess the relationship between environmentally overburdened communities and PFAS point sources + contamination sites
+
+<br>
+
+Design:
+
+-   Aggregate information about PFAS point sources and contamination sites
+-   Match sites to a census tract
+-   Assess socio-demographic and environmental characteristics at the census tract
+
+::: 
+
+## Measuring/assessing environmental justice cont.
+
+::: {.smallish}
+
+<br>
+
+-   The Environmental Justice Index (EJI), developed by CDC and ATSDR, is a multi-dimensional index that accounts for cumulative exposures and disproportionate health outcomes
+
+-   Compares census-tract level environmental, social, and health-based community indicators
+
+-   Unlike EPA's EJSCREEN and CDC's Social Vulnerability Index, the EJI quantifies the cumulative impact of environmental burdens on health
+
+:::
+
+## Environmental Justice Index {.smaller}
+
+![](images/EJI_indicators.png){fig-align="center" width="10%"}
+
+## Creating the Environmental Justice Index 
+
+::: {.smallish}
+
+<br>
+
+For each module:
+
+1.  Order/sort the census tracts on a scale from 0 to 100 for a given variable to get a ranked percentile (RP)
+    -   Ex: each tract's percentile rank indicates the percentage of tracts equal to or lower than its burden for that environmental variable
+2.  For each tract, sum the percentile ranks of the module (SP)
+    -   all variables weighted equally
+3.  Order the summed percentile ranks (SP) for that module on a scale from 0 to 100 to get a ranked percentile (RP)
+
+<br>
+
+Once all modules have a summed percentile (SP), sum the SP to get a summed EJI (SP_EJI). Order the SP_EJI on a scale from 0 to 100 and generate a new ranked percentile (RP).
+
+
+:::
+
+
+## Creating the Environmental Justice Index: Example {.scrollable}
+
+::: columns
+
+:::{.column width="65%"}
+
+```{r}
+
+EBM_sa <- st_drop_geometry(ppps_sa_select) %>% 
+  select(geoid, all_of(names(.[which(names(.) %in% eji_codebook$variable_name[which(eji_codebook$module %in% c("EBM", "SVI"))])])),
+         -contains(c("THEME", "DOM")), -RPL_EBM, -RPL_SVM) %>% 
+  pivot_longer(names_to = "variable", values_to = "value", -c(geoid)) %>% 
+  filter(!str_detect(variable, "E_\\w*|EP_\\w*")) %>% 
+  left_join(eji_codebook_revised[,c("variable_name", "module")], by = c("variable" = "variable_name"))
+
+kableExtra::kable(EBM_sa)
+
+
+```
+
+:::
+
+:::{.column width="35%"}
+```{r}
+
+EBM_sa %>% 
+  group_by(module) %>% 
+  summarize(SPL = sum(value)) %>% 
+  kableExtra::kable() 
+
+```
+
+:::
+
+
+:::
+
+
+
+## Creating the Environmental Justice Index: Example {.smaller}
+
+```{r}
+
+dens_plot_EBM <- ggplot(pfas_mod_data_format, aes(x = SPL_EBM)) %>% 
+  density_plot() + 
+  geom_vline(xintercept = 8.27, color = "red")
+
+dens_plot_SVI <- ggplot(pfas_mod_data_format, aes(x = SPL_SVM)) %>% 
+  density_plot() + 
+  geom_vline(xintercept = 6.81, color = "red")
+
+
+cowplot::plot_grid(dens_plot_EBM, dens_plot_SVI)
+
+
+
+```
+
+
+## Creating the Environmental Justice Index: Example
+
+::: columns
+
+:::{.column width="35%"}
+```{r}
+
+st_drop_geometry(ppps_sa_select) %>% 
+  select(geoid, SPL_EBM, RPL_EBM, SPL_SVM, RPL_SVM, F_HVM, RPL_HVM, SPL_EJI, RPL_EJI) %>% 
+  pivot_longer(names_to = "variable", values_to = "value", -geoid)  %>% 
+  kableExtra::kable()
+
+```
+
+
+:::
+
+:::{.column width="65%"}
+
+
+```{r}
+
+dens_plot_EJI <- ggplot(pfas_mod_data_format, aes(x = SPL_EJI)) %>% 
+  density_plot() + 
+  geom_vline(xintercept = 1.60, color = "red")
+
+p_load(patchwork)
+(dens_plot_EBM + dens_plot_SVI)/ dens_plot_EJI
+
+```
+
+:::
+:::
+
+## PFAS sources {.smaller}
+
+```{r}
+                                              
+tbl_summary(st_drop_geometry(ppps_salvatore_tract) %>% 
+  mutate(dataset = factor(dataset,
+                          labels = c("Part 139 Airports",
+                                     "EPA Stewardship Program Participating Facilities",
+                                     "Facilities in Industries that may be Handling PFAS",
+                                     "Federal Agency Locations with Known or Suspected PFAS Detections",
+                                     "Fire Training Sites",
+                                     "Facilities that Manufacture or Import PFAS",
+                                     "Superfund Sites with PFAS Detections",
+                                     "Known PFAS Spills/Release Incidents"))), 
+  label = dataset ~ "Dataset",
+  include = c("dataset"))
+```
+
+
+
+## PFAS burden estimation  {.smaller}
+
+```{r}
+
+pfas_sa <- ppps_salvatore_tract %>%
+  filter(countyfp == "029" & StateAbbr == "TX")
+
+ppps_sa <- eji_census_tracts_transformed %>%
+  filter(county == "Bexar County" & state == "TX") 
+
+ppps_sa_select <- ppps_sa %>%
+  filter(geoid == "48029980100")
+
+
+ppps_sa_tm <- tm_shape(ppps_sa) +
+  tm_polygons(alpha = 0.8) + 
+  tm_shape(pfas_sa) +
+  tm_dots() 
+
+tmap_leaflet(ppps_sa_tm)
+
+```
+
+
+## PFAS burden estimation: Adding a buffer {.smaller}
+
+```{r}
+
+
+ppps_sa_buffer_tm <- tm_shape(ppps_sa) +
+  tm_polygons(alpha = 0.8) +
+  tm_shape(ppps_1mi_buffer_sa) +
+  tm_polygons(alpha = 0.8, col = "turquoise") +
+  tm_shape(pfas_sa) +
+  tm_dots()
+
+tmap_leaflet(ppps_sa_buffer_tm)
+
+```
+
+
+## PFAS burden estimation: Adding a buffer {.smaller}
+
+```{r}
+
+
+ppps_sa_buffer_tm <- tm_shape(ppps_sa, bbox = st_bbox(ppps_sa_select)) +
+  tm_polygons(alpha = 0.8) +
+  tm_shape(ppps_1mi_buffer_sa) +
+  tm_polygons(alpha = 0.8, col = "turquoise") +
+  tm_shape(pfas_sa) +
+  tm_dots()
+
+tmap_leaflet(ppps_sa_buffer_tm)
+
+```
+
+## PFAS burden estimation: Combine the buffer {.smaller}
+
+```{r}
+
+ppps_sa_comb_buffer_tm <- tm_shape(ppps_sa, bbox = st_bbox(ppps_sa_select)) +
+  tm_polygons(alpha = 0.8) +
+  tm_shape(sa_comb_buffers) +
+  tm_polygons(alpha = 0.8, col = "turquoise") +
+  tm_shape(pfas_sa) +
+  tm_dots()
+
+tmap_leaflet(ppps_sa_comb_buffer_tm)
+
+
+```
+
+## PFAS burden estimation: Find the intersection with a census tracts  {.smaller}
+
+```{r}
+
+ppps_sa_intersect_tm <- tm_shape(ppps_sa, bbox = st_bbox(ppps_sa_select)) +
+  tm_polygons(alpha = 0.8) +
+  tm_shape(sa_comb_buffers) +
+  tm_polygons(alpha = 0.8, col = "turquoise", border.col = "red") +
+  tm_shape(pfas_sa) +
+  tm_dots()
+
+tmap_leaflet(ppps_sa_intersect_tm)
+
+```
+
+## PFAS burden estimation: Calculate % of census tract that intersects with PFAS buffer {.smaller}
+
+$$ 
+\text{perc_area_pfas}_i = \dfrac{\sum\text{area}(\text{PFAS point source with 1 mile buffer that overlaps with census tract i})}{\text{area}(\text{census tract i})}*100\%
+$$
+
+
+## PFAS burden estimation: % of census tract that intersects with PFAS buffer {.smaller}
+
+```{r}
+
+sa_check <- sa_check %>% 
+  mutate(perc_area_pfas = perc_area_pfas*100)
+
+ppps_sa_perc_tm <- tm_shape(sa_check, bbox = st_bbox(ppps_sa_select)) + 
+  tm_polygons("perc_area_pfas", palette = "PuRd") + 
+  tm_shape(sa_comb_buffers) +
+  tm_polygons(alpha = 0.2, col = "turquoise", border.col = "red") +
+  tm_shape(pfas_sa) +
+  tm_dots()
+
+tmap_leaflet(ppps_sa_perc_tm) %>%
+  leaflet::hideGroup(c("sa_comb_buffers", "pfas_sa"))
+
+
+```
+
+## PFAS burden estimation: % of census tract that intersects with PFAS buffer {.smaller}
+
+```{r}
+
+ppps_sa_perc_tm <- tm_shape(sa_check) + 
+  tm_polygons("perc_area_pfas", palette = "PuRd") + 
+  tm_shape(sa_comb_buffers) +
+  tm_polygons(alpha = 0.8, col = "turquoise", border.col = "red") +
+  tm_shape(pfas_sa) +
+  tm_dots()
+
+tmap_leaflet(ppps_sa_perc_tm) %>%
+  leaflet::hideGroup(c("sa_comb_buffers", "pfas_sa"))
+
+```
+
+
+
+## PFAS burden estimation: Percentile rank of % of census tract within 1-mile buffer of PFAS source {.smaller}
+
+```{r}
+
+load("../data/processed/pfas_recalc_spatial.RData")
+
+percentilerank_pfas_bexar <- pfas_recalc_spatial %>%
+  filter(county == "Bexar County" & state == "TX") 
+
+ppps_sa_percentilerank_tm <- tm_shape(percentilerank_pfas_bexar, bbox = st_bbox(ppps_sa_select)) + 
+  tm_polygons("percent_rank_pfas", palette = "PuRd") + 
+  tm_shape(sa_comb_buffers) +
+  tm_polygons(alpha = 0.2, col = "turquoise", border.col = "red") +
+  tm_shape(pfas_sa) +
+  tm_dots()
+
+tmap_leaflet(ppps_sa_percentilerank_tm) %>%
+  leaflet::hideGroup(c("sa_comb_buffers", "pfas_sa"))
+
+```
+
+
+
+## PFAS burden map {.smaller}
+
+![](images/REVISED2_percent_area_pfas_0_map_2023-04-11.png){fig-align="center" height="40%"}
+
+
+## PFAS burden estimation: Distribution {.smaller}
+
+```{r}
+
+perc_area_pfas_density <- ggplot(pfas_mod_data_format, aes(x =  `% of census tract within 1-mile of a PFAS source`)) %>% 
+  density_plot() + 
+  xlab("% of census tract within\n1-mile of a PFAS source") + 
+  theme_bw()
+
+perc_rank_pfas_density <- ggplot(pfas_mod_data_format, aes(x =  `Percentile rank of proportion of census tract within 1-mile of a PFAS source`)) %>% 
+  density_plot() + 
+  xlab("Percentile rank of proportion of census tract\nwithin 1-mile of a PFAS source") + 
+  theme_bw()
+
+cowplot::plot_grid(perc_area_pfas_density, perc_rank_pfas_density)
+
+```
+
+
+## Table 2
+
+```{r}
+
+table1a <- tbl_summary(pfas_mod_data_format,
+            include = c("% of census tract within 1-mile of a PFAS source", 
+                        "Sum of the HVM, EBM, and SVM module percentile ranks", 
+                        "Sum of the EBM variable percentile ranks", 
+                        "Sum of the SVM variable percentile ranks",
+                        "Total number of HVM tertile flags"),
+            type = list(c("% of census tract within 1-mile of a PFAS source", 
+                          "Sum of the HVM, EBM, and SVM module percentile ranks", 
+                          "Sum of the EBM variable percentile ranks", 
+                          "Sum of the SVM variable percentile ranks",
+                          "Total number of HVM tertile flags") ~ 'continuous2'),
+            statistic = list(all_continuous() ~ c("{median} ({p25} - {p75})", 
+                                                  "{mean} ({sd})"))) 
+
+table1b <- tbl_summary(pfas_mod_data_format, 
+                       by = c("Number of PFAS point sources"), 
+                       include = c("Sum of the HVM, EBM, and SVM module percentile ranks", 
+                                   "Sum of the EBM variable percentile ranks", 
+                                   "Sum of the SVM variable percentile ranks",
+                                   "Total number of HVM tertile flags"),
+                       type = list(c("Sum of the HVM, EBM, and SVM module percentile ranks", 
+                                     "Sum of the EBM variable percentile ranks", 
+                                     "Sum of the SVM variable percentile ranks",
+                                     "Total number of HVM tertile flags") ~ 'continuous2'),
+                       statistic = list(all_continuous() ~ c("{median} ({p25} - {p75})", 
+                                                             "{mean} ({sd})"))) %>% 
+  add_p()
+
+
+tbl_merge(list(table1a, table1b), 
+          tab_spanner = c("All Census Tracts", "Number of PFAS point sources")) 
+
+```
+
+
+
+## Distribution of % of census tract within 1-mile of a PFAS source by quartiles of EJI modules
+
+```{r}
+perc_area_pfas_by_SVMquart_plot <- ggplot(pfas_mod_data_format, aes(y = `% of census tract within 1-mile of a PFAS source`, x = SVM_quartile)) %>% 
+  sina_boxplot() + 
+  xlab("Quartile of SVM") + 
+  ylab("% of census tract within\n1-mile of a PFAS source")
+
+perc_area_pfas_by_EBMquart_plot <- ggplot(pfas_mod_data_format, aes(y = `% of census tract within 1-mile of a PFAS source`, x = EBM_quartile)) %>% 
+  sina_boxplot() + 
+  xlab("Quartile of EBM") + 
+  ylab("% of census tract within\n1-mile of a PFAS source")
+
+
+perc_area_pfas_by_HVMflag_plot <- ggplot(pfas_mod_data_format, aes(y = `% of census tract within 1-mile of a PFAS source`, x = as.factor(F_HVM))) %>% 
+  sina_boxplot() + 
+  xlab("# of flags indicating a high estimated prevalence of disease") + 
+  ylab("% of census tract within\n1-mile of a PFAS source")
+
+perc_area_pfas_by_EJIquart_plot <- ggplot(pfas_mod_data_format, aes(y = `% of census tract within 1-mile of a PFAS source`, x = EJI_quartile)) %>% 
+  sina_boxplot() + 
+  xlab("Quartile of EJI") + 
+  ylab("% of census tract within\n1-mile of a PFAS source")
+
+cowplot::plot_grid(perc_area_pfas_by_EBMquart_plot, perc_area_pfas_by_SVMquart_plot, 
+                   perc_area_pfas_by_HVMflag_plot, perc_area_pfas_by_EJIquart_plot)
+
+
+
+```
+
+## the end
+
+::: aside
+
+eat my farts kate
+
+:::
+
+
+<!-- ## EAT MY FARTS KATE --> 
