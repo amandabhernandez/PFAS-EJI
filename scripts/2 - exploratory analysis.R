@@ -12,12 +12,240 @@ source("scripts/0 - setup.R")
 
 load("data/processed/all_ppps_w_count.RData")
 load("data/processed/all_ppps_WOspatial_1c_output.RData")
+load("data/processed/newEJI_wpfasrank_1e_output.RData")
+
+################################################################################
+# X. DENSITY PLOTS  ####
+################################################################################
+
+percentilerank_pfas %>% 
+  pivot_longer(names_to = "pfas_vars", values_to = "value", 
+               c( "perc_area_pfas", "perc_area_pfas_0", 
+                 "percent_rank_pfas_0")) %>% 
+  ggplot(aes(x = value)) %>% 
+  density_plot() + 
+  facet_wrap(~pfas_vars, scales = "free")
+
+#not really sure this matters
+# ggplot(difference_ranks, aes(x = new_SPL_EBM)) + 
+#   # geom_histogram(aes(y = after_stat(density)),
+#   #                color = "green",
+#   #                fill = "white",
+#   #                alpha = 0.1,
+#   #                bins = 30) +
+#   geom_density(fill = "green", alpha = 0.1) + 
+#   # geom_histogram(aes(x = SPL_EBM, y = after_stat(density)),
+#   #                color = "blue",
+#   #                fill = "white",
+#   #                alpha = 0.1,
+#   #                bins = 30) + 
+#   geom_density(aes(x = SPL_EBM), fill = "blue", alpha = 0.1)
 
 
 ################################################################################
 # 1. INSPECT CORRELATIONS  ####
 ################################################################################
 
+
+eji_ppps_perc_cor <- percentilerank_pfas %>% 
+  select(E_TOTPOP:EPL_MHLTH, perc_area_pfas_0, percent_rank_pfas, "new_RPL_EBM", "new_SPL_EBM",
+         "new_RPL_EJI", "new_SPL_EJI")
+
+
+get_upper_tri <- function(cormat){
+  cormat[lower.tri(cormat)]<- NA
+  return(cormat)
+}
+
+
+
+colname_order <- eji_codebook_revised %>% 
+  filter(!str_detect(variable_name, "E_\\w*")) %>% 
+  group_by(var_desc) %>%
+  arrange(variable_name, .by_group=TRUE) %>% 
+  pull(variable_name)
+
+cor_plot <- list()
+for(i in unique(eji_codebook$module)) {
+  
+  eji_cor_module <- eji_ppps_perc_cor %>% 
+    select(all_of(names(.[which(names(.) %in% eji_codebook$variable_name[which(eji_codebook$module == i)])])),
+           any_of(c("n", "n_ppps", "perc_area_pfas_0", "percent_rank_pfas_0" ,"new_RPL_EBM", "new_SPL_EBM",
+                    "new_RPL_EJI", "new_SPL_EJI"))) %>%
+    select(any_of(colname_order), any_of(c("n", "n_ppps", "perc_area_pfas_0",  "percent_rank_pfas_0" ,"new_RPL_EBM", "new_SPL_EBM",
+                                           "new_RPL_EJI", "new_SPL_EJI"))) %>% 
+    select(-contains(c("THEME", "DOM")))
+  
+  cor.matrix <- cor(eji_cor_module, method = "spearman",
+                    use = "complete.obs")
+  
+  cor_plot[[i]] <- reshape2::melt(get_upper_tri(cor.matrix)) %>%
+    ggplot(aes(x=Var1, y=Var2, fill=round(value, 2))) +
+    geom_tile() +
+    geom_text(aes(label = round(value,2)), size = 1) +
+    scale_fill_gradient2(limit = c(-1,1), breaks = c(-1, -.75 ,-.5, -.25, 0, .25,.5, .75, 1),
+                         low = "#29af7f", high =  "#b8de29", mid = "white",
+                         name = "Cor value") +
+    scale_x_discrete(position = "top") +
+    theme(panel.background = element_rect(fill = "white"),
+          #axis.text.y = element_text(size=12),
+          axis.text.x = element_text(angle = 90, vjust = -0.5)) +
+    xlab("")+
+    ylab("") + 
+    ggtitle(paste0("Spearman correlation for ", i, " module")) 
+  
+  # ggsave(paste0("output/figures/new EJI vars ", i,
+  #               " pearson corr plot.png"), height = 20, width = 20, units = "in")
+  
+}
+
+
+save(cor_plot,file = "output/figures/cor_plots.RData")
+
+
+
+################################################################################
+# 2. VISUALIZE SOME STUFF  ####
+################################################################################
+
+
+ggplot(ppps_perc_df, aes(x = perc_area_pfas)) %>% 
+  density_plot() + 
+  ggtitle("Distribution of perc_area_pfas for census tracts with a PFAS point source")
+
+ggplot(ppps_perc_df, aes(x = perc_area_pfas_0)) %>% 
+  density_plot() + 
+  ggtitle("Distribution of perc_area_pfas for all census tracts in EJI")
+
+ggplot(percentilerank_pfas, aes(x = percent_rank_pfas)) %>% 
+  density_plot() + 
+  ggtitle("Distribution of percent_rank_pfas for all census tracts in EJI")
+# not even a little bit normally distributed rip 
+# I think if we want to use EJI then we would need to make this binary because there's 
+# too many census tracts without it and the EJI only provides rank data, not stuff we
+# can just plug into a model. 
+#
+#
+#
+
+
+# cr <- ppps_perc_df %>% 
+#   mutate(quantile_area_pfas = cut(perc_area_pfas_0, breaks=c(0, .25, .5, .75, 1.1), 
+#                                   include.lowest = TRUE, right = FALSE),
+#          quantile_area_pfas = case_when(perc_area_pfas_0 == 0 ~ "0",
+#                                         TRUE ~ quantile_area_pfas))
+# 
+# 
+# ggplot(cr, aes(quantile_area_pfas, y = SPL_EJI)) %>% 
+#   sina_boxplot()
+
+ggplot(ppps_perc_df, aes(x = perc_area_pfas_0, y = SPL_EJI)) +
+  geom_point() + 
+  # ggforce::geom_sina(alpha = 0.5, color = "lightgrey", show.legend = TRUE) +
+  # geom_boxplot(width = 0.1, guides = FALSE, outlier.shape = NA, size = 1, color = "#3a3838") +
+  xlab("% of census tract with a PFAS source") + 
+  ylab("Sum of Env, Social, and Health Module Rankings") + 
+  theme_bw(base_size = 22) + 
+  theme(panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_line(color = "snow2"),
+        strip.text = element_text(color = "black", face = "bold", size = 18),
+        text = element_text(family = "Arial")
+  ) +
+  ggtitle("EJI with percent area pfas")
+
+
+
+
+
+################################################################################
+# 3. SUMMARY STATS####
+################################################################################
+
+
+
+
+# gtsummary::tbl_summary(percentilerank_pfas, 
+#                        digits = everything() ~ 2,
+#                        missing = "no",
+#                        include = c("perc_area_pfas_0", "percent_rank_pfas_0"),
+#                        type = list(c("perc_area_pfas_0", "percent_rank_pfas_0") ~ 'continuous2'),
+#                        statistic = list(c("perc_area_pfas_0", "percent_rank_pfas_0") ~ c("{median} ({p25} - {p75})")))
+# 
+
+
+
+# gtsummary::tbl_summary(ppps_perc_df, 
+#                        digits = everything() ~ 2, 
+#                        missing = "no",
+#                        include = c("RPL_EJI", "RPL_EBM", "RPL_SVM",  "RPL_HVM", "perc_area_pfas_0"),
+#                        type = list(c("RPL_EJI", "RPL_EBM", "RPL_SVM",  "RPL_HVM", "perc_area_pfas_0") ~ 'continuous2'),
+#                        statistic = list(c("RPL_EJI", "RPL_EBM", "RPL_SVM",  "RPL_HVM", "perc_area_pfas_0") ~ c("{median} ({p25} - {p75})"))) 
+
+
+
+################################################################################
+# X. COMPARE MEDIANS ####
+################################################################################
+
+pfas_mod_data <- percentilerank_pfas %>% 
+  mutate(hasPFAS = case_when(!is.na(perc_area_pfas) ~ 1,
+                             TRUE ~ 0))
+
+gtsummary::tbl_summary(pfas_mod_data, 
+                       by = c("hasPFAS"), 
+                       digits = everything() ~ 2,
+                       missing = "no",
+                       include = c("SPL_EJI", "SPL_EBM", "SPL_SVM",  "F_HVM"),
+                       type = list(c("SPL_EJI", "SPL_EBM", "SPL_SVM",  "F_HVM") ~ 'continuous2'),
+                       statistic = list(c("SPL_EJI", "SPL_EBM", "SPL_SVM",  "F_HVM") ~ c("{median} ({p25} - {p75})"))) %>% 
+  gtsummary::add_p()
+
+
+pfas_mod_data %>% 
+  pivot_longer(names_to = "module", values_to = "SPL", c("SPL_EJI", "SPL_EBM", "SPL_SVM",  "F_HVM")) %>% 
+  ggplot(aes(x = as.factor(hasPFAS), y = SPL)) %>% 
+  sina_boxplot() + 
+  facet_wrap(~module, scales = "free")
+
+################################################################################
+# 4. MODEL A THING ####
+################################################################################
+
+
+pfas_mod_data <- percentilerank_pfas %>% 
+  mutate(hasPFAS = case_when(!is.na(perc_area_pfas) ~ 1,
+                             TRUE ~ 0))
+pfas_mod_data %>% 
+  pivot_longer(names_to = "metric", values_to = "L", c("RPL_EBM", "new_RPL_EBM")) %>% 
+  ggplot(aes(x = as.factor(hasPFAS), y = L, color = metric)) +
+  ggforce::geom_sina(alpha = 0.5, color = "lightgrey", show.legend = TRUE) +
+  geom_boxplot(width = 0.1, guides = FALSE, outlier.shape = NA, 
+               size = 1, alpha = 0.5) 
+# this plot is interesting... so RPL_EBM goes up for census tracts with PFAS , 
+# but goes down for census tracts without PFAS -- that makes sense!! 
+
+ggplot(percentilerank_pfas, aes(x = perc_area_pfas_0, y = SPL_SVM))+
+  geom_point()
+
+
+mod1 <- glm(hasPFAS ~ RPL_EJI, data = pfas_mod_data, family = binomial())
+
+broom::tidy(mod1, exponentiate = TRUE)
+
+
+mod2 <- glm(hasPFAS ~ RPL_EBM + RPL_SVM + RPL_HVM, data = pfas_mod_data, family = binomial())
+
+broom::tidy(mod2, exponentiate = TRUE)
+
+
+mod3 <- glm(hasPFAS ~ SPL_EBM + SPL_SVM + F_HVM, data = pfas_mod_data, family = binomial())
+
+broom::tidy(mod3, exponentiate = TRUE)
+gtsummary::tbl_regression(mod3, exponentiate = TRUE)
+
+# ############################# GARBAGE <3 ######################################
+#
+# 
 # 
 # eji_w_ppps_salvatore_wallEJI <-eji_data_fromCDC %>% 
 #   full_join(ppps_salvatore_count)  %>% 
@@ -67,140 +295,13 @@ load("data/processed/all_ppps_WOspatial_1c_output.RData")
 ###### SPEARMAN CORR ######
 
 
-
-eji_ppps_spearman_salvatore <- eji_w_ppps_salvatore %>%
-  select(E_TOTPOP:EPL_MHLTH, n, n_ppps)
-
-eji_ppps_spearman_eh249 <- eji_w_ppps_eh249 %>%
-  select(E_TOTPOP:EPL_MHLTH, n, n_ppps)
-
-eji_ppps_perc_spearman <- ppps_perc_df %>% 
-  select(E_TOTPOP:EPL_MHLTH, perc_area_pfas_0) %>% 
-  filter(perc_area_pfas_0 > 0)
-
-
-get_upper_tri <- function(cormat){
-  cormat[lower.tri(cormat)]<- NA
-  return(cormat)
-}
-
-
-
-colname_order <- eji_codebook_revised %>% 
-  group_by(var_desc) %>%
-  arrange(variable_name, .by_group=TRUE) %>% 
-  pull(variable_name)
-
-
-eji_ppps_spearman_list <- list("eh249" = eji_ppps_spearman_eh249, 
-                               "salvatore" = eji_ppps_spearman_salvatore,
-                               "perc_area_pfas" = eji_ppps_perc_spearman)
-
-for(l in 1:length(eji_ppps_spearman_list)){
-  
-  
-  for(i in unique(eji_codebook$module)) {
-    
-    eji_spearman_module <- eji_ppps_spearman_list[[l]] %>% 
-      select(all_of(names(.[which(names(.) %in% eji_codebook$variable_name[which(eji_codebook$module == i)])])),
-             any_of(c("n", "n_ppps", "perc_area_pfas_0"))) %>%
-      select(any_of(colname_order), any_of(c("n", "n_ppps", "perc_area_pfas_0")))
-    
-    cor.matrix <- cor(eji_spearman_module, method = "pearson",
-                      use = "complete.obs")
-    
-    reshape2::melt(get_upper_tri(cor.matrix)) %>%
-      ggplot(aes(x=Var1, y=Var2, fill=round(value, 2))) +
-      geom_tile() +
-      geom_text(aes(label = round(value,2))) +
-      scale_fill_gradient2(limit = c(-1,1), breaks = c(-1, -.75 ,-.5, -.25, 0, .25,.5, .75, 1),
-                           low = "#29af7f", high =  "#b8de29", mid = "white",
-                           name = "Cor value") +
-      scale_x_discrete(position = "top") +
-      theme(panel.background = element_rect(fill = "white"),
-            #axis.text.y = element_text(size=12),
-            axis.text.x = element_text(angle = 90, vjust = -0.5)) +
-      xlab("")+
-      ylab("") + 
-      ggtitle(paste0("Spearman correlation for ", i, " module in ", names(eji_ppps_spearman_list[l])))
-    
-    ggsave(paste0("output/", names(eji_ppps_spearman_list[l]), " ", i,
-                  " spearman corr plot.png"), height = 20, width = 20, units = "in")
-    
-  }
-  
-}
-
-## to resolve: the n_ppps salvatore approach is more closely correlated with EPL_TRI 
-## than the eh 249 approach... hmm....
-
-
-
-
-################################################################################
-# 2. VISUALIZE SOME STUFF  ####
-################################################################################
-
-
-ggplot(ppps_perc_df, aes(x = perc_area_pfas)) %>% 
-  density_plot() + 
-  ggtitle("Distribution of perc_area_pfas for census tracts with a PFAS point source")
-
-ggplot(ppps_perc_df, aes(x = perc_area_pfas_0)) %>% 
-  density_plot() + 
-  ggtitle("Distribution of perc_area_pfas for all census tracts in EJI")
-
-
-# cr <- ppps_perc_df %>% 
-#   mutate(quantile_area_pfas = cut(perc_area_pfas_0, breaks=c(0, .25, .5, .75, 1.1), 
-#                                   include.lowest = TRUE, right = FALSE),
-#          quantile_area_pfas = case_when(perc_area_pfas_0 == 0 ~ "0",
-#                                         TRUE ~ quantile_area_pfas))
 # 
+# eji_ppps_spearman_salvatore <- eji_w_ppps_salvatore %>%
+#   select(E_TOTPOP:EPL_MHLTH, n, n_ppps)
 # 
-# ggplot(cr, aes(quantile_area_pfas, y = SPL_EJI)) %>% 
-#   sina_boxplot()
+# eji_ppps_spearman_eh249 <- eji_w_ppps_eh249 %>%
+#   select(E_TOTPOP:EPL_MHLTH, n, n_ppps)
 
-ggplot(ppps_perc_df, aes(x = perc_area_pfas_0, y = SPL_EJI)) +
-  geom_point() + 
-  # ggforce::geom_sina(alpha = 0.5, color = "lightgrey", show.legend = TRUE) +
-  # geom_boxplot(width = 0.1, guides = FALSE, outlier.shape = NA, size = 1, color = "#3a3838") +
-  xlab("% of census tract with a PFAS source") + 
-  ylab("Sum of Env, Social, and Health Module Rankings") + 
-  theme_bw(base_size = 22) + 
-  theme(panel.grid.major.y = element_blank(),
-        panel.grid.major.x = element_line(color = "snow2"),
-        strip.text = element_text(color = "black", face = "bold", size = 18),
-        text = element_text(family = "Arial")
-  ) +
-  ggtitle("EJI with percent area pfas")
-
-
-
-
-################################################################################
-# 3. SUMMARY STATS####
-################################################################################
-
-
-
-
-# gtsummary::tbl_summary(ppps_perc_df, 
-#                        digits = everything() ~ 2, 
-#                        missing = "no",
-#                        include = c("RPL_EJI", "RPL_EBM", "RPL_SVM",  "RPL_HVM", "perc_area_pfas_0"),
-#                        type = list(c("RPL_EJI", "RPL_EBM", "RPL_SVM",  "RPL_HVM", "perc_area_pfas_0") ~ 'continuous2'),
-#                        statistic = list(c("RPL_EJI", "RPL_EBM", "RPL_SVM",  "RPL_HVM", "perc_area_pfas_0") ~ c("{median} ({p25} - {p75})"))) 
-
-
-
-
-
-
-
-
-# ############################# GARBAGE <3 ######################################
-#
 # 
 # ggplot(eji_w_ppps_eh249, aes(x = as.factor(n_ppps_groups), y = SPL_EJI)) +
 #   ggforce::geom_sina(alpha = 0.5, color = "lightgrey", show.legend = TRUE) +
@@ -444,3 +545,49 @@ ggplot(ppps_perc_df, aes(x = perc_area_pfas_0, y = SPL_EJI)) +
 #   select(-c(median:p75)) %>% 
 #   pivot_wider(names_from = metric, values_from = `Median (IQR)`)  %>% 
 #   flextable()
+
+
+
+########## A PIECE OF ART THAT IS ALSO NOW GARBAGE RIP <3 #####################
+
+eji_ppps_spearman_list <- list("eh249" = eji_ppps_spearman_eh249, 
+                               "salvatore" = eji_ppps_spearman_salvatore,
+                               "perc_area_pfas" = eji_ppps_perc_spearman)
+
+for(l in 1:length(eji_ppps_spearman_list)){
+  
+  
+  for(i in unique(eji_codebook$module)) {
+    
+    eji_spearman_module <- eji_ppps_spearman_list[[l]] %>% 
+      select(all_of(names(.[which(names(.) %in% eji_codebook$variable_name[which(eji_codebook$module == i)])])),
+             any_of(c("n", "n_ppps", "perc_area_pfas_0"))) %>%
+      select(any_of(colname_order), any_of(c("n", "n_ppps", "perc_area_pfas_0")))
+    
+    cor.matrix <- cor(eji_spearman_module, method = "pearson",
+                      use = "complete.obs")
+    
+    reshape2::melt(get_upper_tri(cor.matrix)) %>%
+      ggplot(aes(x=Var1, y=Var2, fill=round(value, 2))) +
+      geom_tile() +
+      geom_text(aes(label = round(value,2))) +
+      scale_fill_gradient2(limit = c(-1,1), breaks = c(-1, -.75 ,-.5, -.25, 0, .25,.5, .75, 1),
+                           low = "#29af7f", high =  "#b8de29", mid = "white",
+                           name = "Cor value") +
+      scale_x_discrete(position = "top") +
+      theme(panel.background = element_rect(fill = "white"),
+            #axis.text.y = element_text(size=12),
+            axis.text.x = element_text(angle = 90, vjust = -0.5)) +
+      xlab("")+
+      ylab("") + 
+      ggtitle(paste0("Spearman correlation for ", i, " module in ", names(eji_ppps_spearman_list[l])))
+    
+    ggsave(paste0("output/", names(eji_ppps_spearman_list[l]), " ", i,
+                  " spearman corr plot.png"), height = 20, width = 20, units = "in")
+    
+  }
+  
+}
+
+## to resolve: the n_ppps salvatore approach is more closely correlated with EPL_TRI 
+## than the eh 249 approach... hmm....
