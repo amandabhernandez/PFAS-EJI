@@ -29,6 +29,8 @@ message(st_crs(all_ppps_salvatore)$Name == st_crs(all_ppps_eh249)$Name)
 eji_census_tracts_transformed <- st_transform(eji_spatial_tidy, 
                                           st_crs(all_ppps_salvatore))
 
+
+
 # find the overlap between a site and a census tract to assign a geoid to
 # each facility
 ppps_salvatore_tract <- all_ppps_salvatore %>% 
@@ -91,6 +93,10 @@ load("data/processed/step3_ppps_buffer_overlap.RData")
 ################################################################################
 # 4. CALC PERC OVERLAY   ####
 ################################################################################
+
+# save the work that is required for this to run
+save(eji_census_tracts_transformed, ppps_buffer_overlap, 
+     file = "data/processed/steps1-3_for_running_perc_overlay")
 
 load("data/processed/buffering_2023-04-02 18:55:26.RData")
 
@@ -339,7 +345,7 @@ ppps_perc <- eji_census_tracts_transformed %>%
 
 
 save(perc_tract_pfas, ppps_perc, 
-     file = "data/processed/ppps_w_buffer_perc_tract_intersecting_FIXmaybe.RData")
+     file = "data/processed/ppps_w_buffer_perc_tract_intersecting_FIX_70hrs.RData")
 
 ################################################################################
 # 5. LOOK AT PERC OVERLAP   ####
@@ -383,13 +389,13 @@ ggplot(ppps_perc, aes(x = perc_area_pfas_0)) +
 
 ppps_perc %>% 
   filter(!is.na(StateAbbr)) %>% 
-  ggplot(aes(fill = perc_area_pfas)) +
+  ggplot(aes(fill = perc_area_pfas_0)) +
   geom_sf() +
   scale_fill_distiller(palette = "PuRd", direction= 1)
 
 beepr::beep(10)
 
-ggsave("output/figures/perc_area_pfas_map.png", height = 20, width = 30)
+ggsave(paste0("output/figures/perc_area_pfas_map_",Sys.Date(),".png"), height = 20, width = 30)
 
 
 
@@ -403,13 +409,13 @@ tm_shape(ppps_perc) +
 
 # now we can drop spatial data because we just need the geoids
 
-ppps_salvatore_tract_df <- st_drop_geometry(ppps_salvatore_tract) %>% 
-  distinct() %>% 
-  select(dataset:geoid)
-
-ppps_eh249_tract_df <- st_drop_geometry(ppps_eh249_tract) %>% 
-  distinct() %>% 
-  select(dataset:geoid)
+# ppps_salvatore_tract_df <- st_drop_geometry(ppps_salvatore_tract) %>% 
+#   distinct() %>% 
+#   select(dataset:geoid)
+# 
+# ppps_eh249_tract_df <- st_drop_geometry(ppps_eh249_tract) %>% 
+#   distinct() %>% 
+#   select(dataset:geoid)
 
 
 eji_tracts_df <- st_drop_geometry(eji_spatial_tidy)  %>% 
@@ -419,11 +425,13 @@ eji_tracts_df <- st_drop_geometry(eji_spatial_tidy)  %>%
 ppps_perc_df <- st_drop_geometry(ppps_perc)  %>% 
   distinct()
 
-save(ppps_salvatore_tract_df, ppps_eh249_tract_df, 
-     eji_tracts_df, ppps_perc_df,
-     file = "data/processed/all_ppps_WOspatial_1c_output.RData")
+# save(ppps_salvatore_tract_df, ppps_eh249_tract_df, 
+#      eji_tracts_df, ppps_perc_df,
+#      file = "data/processed/all_ppps_WOspatial_1c_output.RData")
 
 
+save(ppps_perc_df,
+     file = paste0("data/processed/all_ppps_WOspatial_1c_output_",Sys.Date(),".RData"))
 
 
 
