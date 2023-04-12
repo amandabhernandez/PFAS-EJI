@@ -283,3 +283,79 @@ ppps_perc_df %>%
 
  -->
 ````
+
+
+```{r}
+# | eval: false
+
+# tbl_summary(pfas_mod_data_format,
+#                        include = c("Percentile rank of proportion of census tract within 1-mile of a PFAS source",
+#                                    "Sum of the HVM, EBM, and SVM module percentile ranks after accounting for PFAS sources", 
+#                                    "Sum of the EBM variable percentile ranks after accounting for PFAS sources", 
+#                                    "Change in EJI sum",
+#                                    "Change in EBM sum",
+#                                    "Change in EBM rank"),
+#                        type = list(c("Percentile rank of proportion of census tract within 1-mile of a PFAS source",
+#                                      "Sum of the HVM, EBM, and SVM module percentile ranks after accounting for PFAS sources", 
+#                                      "Sum of the EBM variable percentile ranks after accounting for PFAS sources", 
+#                                      "Change in EJI sum",
+#                                      "Change in EBM sum",
+#                                      "Change in EBM rank") ~ 'continuous2'),
+#                        statistic = list(all_continuous() ~ c("{median} ({p25} - {p75})", 
+#                                                              "{mean} ({sd})"))) 
+# 
+# 
+# pfas_mod_data %>%
+#   #pivot_longer(names_to = "SPL_EJI_version", values_to = "SPL", c(new_SPL_EJI, RPL_EJI)) %>%
+#   pivot_longer(names_to = "SPL_EBM_version", values_to = "SPL", c(new_SPL_EBM, SPL_EBM)) %>%
+#   tbl_summary(include = c(SPL),
+#               by = c(SPL_EBM_version))
+# 
+# pfas_mod_data %>%
+#   pivot_longer(names_to = "SPL_EJI_version", values_to = "SPL", c(new_SPL_EJI, SPL_EJI)) %>%
+#   #pivot_longer(names_to = "SPL_EBM_version", values_to = "SPL", c(new_SPL_EBM, SPL_EBM)) %>%
+#   tbl_summary(include = c(SPL),
+#               by = c(SPL_EJI_version))
+
+# 
+# pfas_mod_data %>% 
+#   tbl_summary(include = c(EBM_rank_change))
+
+
+
+
+# 
+# pfas_mod_data %>%
+#   #filter(percent_rank_pfas_0 != 0) %>%
+#   ggplot(aes(x = new_RPL_EBM, y = RPL_EBM, color = perc_area_pfas_0)) +
+#   geom_point(alpha = 0.5) +
+#   scale_color_continuous(low = "pink", high = "palevioletred", na.value = "snow2") + 
+#   geom_abline(slope = 1, color = "red")
+# # 
+# # 
+# pfas_mod_data %>%
+#   # filter(percent_rank_pfas_0 != 0) %>%
+#   ggplot(aes(x = new_RPL_EJI, y = RPL_EJI, color = perc_area_pfas_0)) +
+#   geom_point() +
+#     scale_color_continuous(low = "pink", high = "palevioletred", na.value = "snow2") + 
+#   geom_abline(slope = 1, color = "red")
+# 
+
+# pfas_mod_data %>%
+#   ggplot(aes(y = EJI_rank_change, x = RPL_SVM, color = percent_rank_pfas))+ 
+#   geom_point(alpha = 0.5) + 
+#   scale_color_continuous(low = "pink", high = "palevioletred", na.value = "snow2") + 
+#   geom_hline(yintercept = 0, color = "red")
+# 
+# 
+# 
+# ggplot(difference_ranks, aes(y = EJI_rank_change, x = EBM_rank_change, 
+#                              color = perc_area_pfas_0)) + 
+#   geom_point(alpha = 0.5) + 
+#   geom_hline(yintercept = 0, color = "red") + 
+#   geom_vline(xintercept = 0, color = "red") + 
+#   scale_color_continuous(low = "pink", high = "palevioletred", na.value = "snow2") + 
+#   facet_wrap(~EJI_quartile)
+
+
+```
