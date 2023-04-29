@@ -1,0 +1,467 @@
+---
+format: 
+  revealjs:
+      theme: [simple, custom.scss]
+      echo: false
+      slide-number: true
+      smaller: true
+      revealjs-plugins:
+        - confetti
+        - pointer
+execute-dir: project
+execute:
+  freeze: auto 
+---
+
+```{r}
+#| label: load-packages
+#| include: false
+
+library(pacman)
+pacman::p_load(tidyverse, gtsummary)
+
+# source("scripts/0 - setup.R")
+
+eji_codebook <- read_csv("../data/raw/EJI/eji_codebook/files/output/eji_codebook.csv") 
+
+eji_codebook_revised <- eji_codebook %>% 
+  mutate(var_desc = case_when(str_detect(variable_name, "(?<=_).*") ~ str_extract(variable_name, "(?<=_).*"),
+                              TRUE ~ variable_name),
+         var_metric = str_extract(variable_name, "^.{3}(?=_)"))
+
+
+# load("../data/processed/all_ppps_1a_output.RData")
+# load("../data/processed/eji_spatial_1b_output.RData")
+# load("../data/processed/all_ppps_spatial_1c_output.RData")
+# load("../data/processed/all_ppps_WOspatial_1c_output_2023-04-04.RData")
+# load("../data/processed/newEJI_wpfasrank_1e_output_2023-04-04.RData")
+load("../data/processed/pfas_mod_formatting.RData")
+
+
+
+# load("../data/processed/sa_files.RData")
+
+theme_set(theme_bw())
+
+density_plot <- function(ggobj, bin_num = 30){
+  ggobj +
+    geom_histogram(aes(y = after_stat(density)),
+                   color = "black",
+                   fill = "white",
+                   bins = bin_num) +
+    geom_density(fill = "red", alpha = 0.25)
+}
+
+sina_boxplot <- function(ggobj){
+    ggobj +
+    ggforce::geom_sina(alpha = 0.5, color = "lightgrey", show.legend = TRUE) +
+    geom_boxplot(width = 0.1, guides = FALSE, outlier.shape = NA,
+                 size = 1, color = "#3a3838", alpha = 0.5)
+}
+
+```
+
+# Exposures to per- and polyfluoroalkyl substances in environmentally overburdened communities {.smaller}
+
+<br> A. Hernandez <br>
+
+<hr>
+
+<br>
+
+April, 2023
+
+## Model inputs
+
+-   PFAS point source
+
+    -   Has PFAS point source (doesn't account for buffer effect)
+    -   Overlaps with PFAS point source buffer
+    -   \% of census tract area within 1-mile of a PFAS source (bimodal)
+    -   Percentile rank of % of census tract area within 1-mile of a PFAS source (weird distribution)
+
+## PFAS burden estimation: Distribution {.smaller}
+
+```{r}
+
+# load("../data/processed/pfas_mod_formatting.RData")
+
+perc_area_pfas_density <- ggplot(pfas_mod_data_format, aes(x =  `% of census tract within 1-mile of a PFAS source`)) %>% 
+  density_plot() + 
+  xlab("% of census tract within\n1-mile of a PFAS source") + 
+  theme_bw()
+
+perc_rank_pfas_density <- ggplot(pfas_mod_data_format, aes(x =  `Percentile rank of proportion of census tract within 1-mile of a PFAS source`)) %>% 
+  density_plot() + 
+  xlab("Percentile rank of proportion of census tract\nwithin 1-mile of a PFAS source") + 
+  theme_bw()
+
+cowplot::plot_grid(perc_area_pfas_density, perc_rank_pfas_density)
+
+```
+
+## Environmental Justice Index {.smaller}
+
+![](images/EJI_indicators.png){fig-align="center" width="10%"}
+
+## Model approaches
+
+1. Quartile model (one model, with univariate and multivariate) 
+
+-   Model 1: quartile of EJI percentile ranking 
+
+-   Model 2: adjusted for quartile of SVI percentile ranking and quartile of EBM ranking separately
+
+
+2.  Model themes + subcomponents approach with just SVI (each model has univariate and multivariate, for a total of 6 models):
+
+-   Model 1: overall SVI percentile ranking
+
+-   Model 2: each of the 4 SVI themes by percentile ranking
+
+-   Model 3: each of the individual CDC SVI variables as percentages
+
+3. Model themes + subcomponents approach with EBM included
+
+4. Model themes + subcomponents approach with SVI + EBM quartiles 
+
+
+
+## Model approach 1 justification {.smaller}
+
+```{r}
+perc_area_pfas_by_SVMquart_plot <- ggplot(pfas_mod_data_format, aes(y = `% of census tract within 1-mile of a PFAS source`, x = SVM_quartile)) %>% 
+  sina_boxplot() + 
+  xlab("Quartile of SVM") + 
+  ylab("% of census tract within\n1-mile of a PFAS source")
+
+perc_area_pfas_by_EBMquart_plot <- ggplot(pfas_mod_data_format, aes(y = `% of census tract within 1-mile of a PFAS source`, x = EBM_quartile)) %>% 
+  sina_boxplot() + 
+  xlab("Quartile of EBM") + 
+  ylab("% of census tract within\n1-mile of a PFAS source")
+
+perc_area_pfas_by_EJIquart_plot <- ggplot(pfas_mod_data_format, aes(y = `% of census tract within 1-mile of a PFAS source`, x = EJI_quartile)) %>% 
+  sina_boxplot() + 
+  xlab("Quartile of EJI") + 
+  ylab("% of census tract within\n1-mile of a PFAS source")
+
+cowplot::plot_grid(perc_area_pfas_by_EBMquart_plot, perc_area_pfas_by_SVMquart_plot, perc_area_pfas_by_EJIquart_plot)
+```
+
+
+## Model approach 1 {.smaller}
+
+```{r}
+
+load("../output/models/quartile_mod.RData")
+
+tbl_merge(list(mod_quarts_uv, mod_quarts_multi), 
+          tab_spanner = c("Unadjusted", "Adjusted"))
+
+```
+
+
+
+
+## Model approach 1 considerations {.smaller}
+
+<br>
+
+::: columns
+
+::: {.column width="50%"}
+Pros: 
+
+-   assesses the cumulative effect 
+
+-   relatively straightforward interpretation
+
+-   have seen similar things in the literature 
+
+    -     Barry 2021 -- vaccine status and quartiles of SVI
+    -     Huges 2021 -- vaccine status tertiles of SVI (low, moderate, high)
+
+:::
+
+
+::: {.column width="50%"}
+
+Cons: 
+
+-   loss of information by collapsing 
+
+-   no sense of what is driving the relationship we're seeing 
+:::
+
+:::
+
+
+
+## Model approach 2 justification {.smaller}
+
+-   Similar to other SVI paper approaches 
+
+    -   Fletcher et al 2021 uses this approach to look at SVI and stay at home adherence during COVID
+    
+    -   Barry et al 2021 uses this with quartiles to look at vaccine coverage and SVI
+
+
+## Model approach 2: Model 1 {.smaller}
+
+-   Coefficients are percent changes in the odds of having a PFAS source associated with one percentile rank higher of social vulnerability 
+
+-   Higher SVI percentile rank (higher social vulnerability relative to other counties) was significantly associated with living in a census tract within 1-mile of a PFAS point source (OR: 2.07). 
+
+```{r}
+
+
+load("../output/models/svm_3part_mod.RData")
+
+RPL_SVM_mod
+
+```
+
+
+
+
+
+
+## Model approach 2: Model 2 {.smaller}
+
+-     Each one percentile rank higher of SVI related to SES was associated with a 108% increase in odds of having a PFAS point source. 
+-     Each one percentile rank higher of SVI related to Race/Ethnicity was associated with a 172% increase in odds of having a PFAS point source. 
+-   Inverse association with SVI related to household characteristics and housing type
+
+```{r}
+
+
+tbl_merge(list(RPL_SVM_dom_univ, tbl_regression(RPL_SVM_dom_multi, exponentiate = TRUE)), 
+          tab_spanner = c("Unadjusted", "Adjusted"))
+
+
+```
+
+
+
+## Model approach 2: Model 3 {.smaller}
+
+```{r}
+
+
+tbl_merge(list(RPL_SVM_comp_univ, tbl_regression(RPL_SVM_comp_multi, exponentiate = TRUE)), 
+          tab_spanner = c("Unadjusted", "Adjusted"))
+
+
+```
+
+
+## Model approach 2 considerations {.smaller}
+
+<br>
+
+::: columns
+
+::: {.column width="50%"}
+
+Pros: 
+
+
+-   assesses the cumulative effect 
+
+-   also evaluates the drivers of that cumulative effect
+
+:::
+
+::: {.column width="50%"}
+
+Cons: 
+
+-   lots of models, lots of variables in those models
+
+-   how to account for EBM? 
+
+
+:::
+
+:::
+
+## Redoing model approach 2 but with EBM (Model 3)
+
+
+
+## Model approach 3 (EBM): Model 1 {.smaller}
+
+```{r}
+
+load("../output/models/ebm_mod.Rdata")
+
+RPL_EBM_mod
+
+
+```
+
+## Model approach 3  (EBM): Model 2 {.smaller}
+
+```{r}
+
+RPL_EBM_dom_univ <- pfas_mod_data_format %>% 
+  select(hasPFAS, contains("EBM Theme")) %>% 
+  tbl_uvregression(method = glm,
+                   y = hasPFAS, 
+                   method.args = list(family = binomial),
+                   exponentiate = TRUE)
+
+
+RPL_EBM_dom_multi <-  glm(hasPFAS ~ `EBM Theme 1: Air Pollution` + 
+                            `EBM Theme 2: Potentially Hazardous + Toxic Sites` + 
+                            `EBM Theme 3: Built Env` +  `EBM Theme 4: Transportation Infrastructure` + 
+                            `EBM Theme 5: Water Pollution`, 
+                          data = pfas_mod_data_format, family = binomial())
+
+
+tbl_merge(list(RPL_EBM_dom_univ, 
+               tbl_regression(RPL_EBM_dom_multi, exponentiate = TRUE)), 
+          tab_spanner = c("Unadjusted", "Adjusted"))
+
+
+```
+
+
+
+
+
+## Model approach 3 (EBM): Model 3 {.smaller}
+
+```{r}
+
+
+RPL_EBM_comp_univ <- pfas_mod_data %>% 
+  select(hasPFAS,
+         any_of(
+           eji_codebook_revised$variable_name[which(
+             eji_codebook_revised$module == "EBM" &
+               str_detect(eji_codebook_revised$variable_name,  "E_"))])) %>%
+  tbl_uvregression(method = glm,
+                   y = hasPFAS, 
+                   method.args = list(family = binomial),
+                   exponentiate = TRUE)
+
+
+RPL_EBM_comp_multi <- glm(as.formula(paste0(
+  "hasPFAS ~ ",
+  paste0(eji_codebook_revised$variable_name[which(
+    eji_codebook_revised$module == "EBM" &
+      str_detect(eji_codebook_revised$variable_name, "E_"))], 
+    collapse = "+"))), data = pfas_mod_data, family = binomial())
+
+
+tbl_merge(list(RPL_EBM_comp_univ, 
+               tbl_regression(RPL_EBM_comp_multi, exponentiate = TRUE)), 
+          tab_spanner = c("Unadjusted","Adjusted"))
+
+
+```
+
+## Model approach 3 (SVM + EBM): Model 1
+
+```{r}
+
+load("../output/models/svm_ebm_3part_mod.RData")
+
+tbl_regression(RPL_SVM_EBM_mod, exponentiate = TRUE)
+```
+
+## Model approach 3 (SVM + EBM): Model 2
+
+```{r}
+
+tbl_regression(RPL_SVM_EBM_dom_multi, exponentiate = TRUE)
+
+```
+
+
+## Model approach 3 (SVM + EBM): Model 1 {.scrollable}
+
+```{r}
+load("../output/models/svm_ebm_3part_mod.RData")
+
+
+tbl_regression(RPL_SVM_EBM_comp_multi, exponentiate = TRUE)
+
+```
+
+
+## Model approach 4 (SVM + EBM quartiles)
+
+A combo of approach 1 and 2 -- quartiles with the disaggregation/aggregation method
+
+## Model approach 4 (SVM + EBM quartiles): Model 1 {.scrollable}
+
+```{r}
+tbl_merge(list(mod_quarts_uv, mod_quarts_multi), 
+          tab_spanner = c("Unadjusted", "Adjusted"))
+
+```
+
+
+## Model approach 4 (SVM + EBM quartiles): Model 2 {.scrollable}
+
+```{r}
+
+mod_quarts_themes_uv <- pfas_mod_data_format %>% 
+  select(hasPFAS, contains("Quartile of")) %>% 
+  gtsummary::tbl_uvregression(method = glm,
+                              y = hasPFAS, 
+                              method.args = list(family = binomial),
+                              exponentiate = TRUE)
+
+
+mod_quarts_themes_multi <- glm(hasPFAS ~ 
+                          `Quartile of SVM Theme 1: Race/Ethnicity` +
+                          `Quartile of SVM Theme 2: SES` +
+                          `Quartile of SVM Theme 3: Household Characteristics` +
+                          `Quartile of SVM Theme 4: Housing Type` +
+                          `Quartile of EBM Theme 1: Air Pollution` +
+                          `Quartile of EBM Theme 2: Potentially Hazardous + Toxic Sites` +
+                          `Quartile of EBM Theme 3: Built Env` +
+                          `Quartile of EBM Theme 4: Transportation Infrastructure` + 
+                          `Quartile of EBM Theme 5: Water Pollution`, 
+                          data = pfas_mod_data_format, family = binomial()) %>% 
+  gtsummary::tbl_regression(exponentiate = TRUE)
+
+
+tbl_merge(list(mod_quarts_themes_uv, mod_quarts_themes_multi), 
+          tab_spanner = c("Unadjusted","Adjusted"))
+```
+
+
+## Model approach 4 (SVM + EBM quartiles): Model 3 {.scrollable}
+
+-   ???
+
+-   One paper only looked at individual component variables for themes that they wanted to investigate based on model 2 results
+
+
+
+## Extra slides... 
+
+## Correlation between PFAS sources and EBM variables  {.scrollable}
+
+```{r}
+#| fig-asp: 1
+
+load("../output/figures/cor_plots.RData")
+
+cor_plot[[2]] %>% 
+  plotly::ggplotly()
+
+```
+## Correlation between PFAS sources and SVM variables {.scrollable}
+
+```{r}
+#| fig-asp: 1
+
+cor_plot[[3]]%>% 
+  plotly::ggplotly()
+
+```
