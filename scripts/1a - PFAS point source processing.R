@@ -162,6 +162,9 @@ facilities_naics <- facilities %>%
            CWA_NAICS %in% c(naics_salvatore$naics_code) |
            RCRA_NAICS %in% c(naics_salvatore$naics_code))
 
+length(unique(facilities_naics$frs_id))
+#33303
+
 # facilities_naics %>% 
 #   pivot_longer(names_to = "reporting_req", values_to = "naics_code", CAA_NAICS:RCRA_NAICS) %>% 
 #   group_by(naics_code) %>% 
@@ -176,11 +179,6 @@ facilities_naics <- facilities %>%
 
 
 
-facilities_eh249 <- facilities %>% 
-  mutate(frs_id = str_extract(`ECHO Facility Report`, "(?<=fid=)\\d*")) %>% 
-  filter(!Industry %in% c("Airports", "Fire Training", "National Defense")) %>% 
-  filter(!is.na(Latitude)) %>% 
-  filter(TRI_FLAG == "N")
 
 facilities_salvatore <- facilities %>% 
   mutate(frs_id = str_extract(`ECHO Facility Report`, "(?<=fid=)\\d*")) %>% 
@@ -189,17 +187,14 @@ facilities_salvatore <- facilities %>%
   filter(frs_id %in% facilities_naics$frs_id) %>% 
   filter(TRI_FLAG == "N")
 
+length(unique(facilities_salvatore$frs_id))
+
 # table(facilities_salvatore$frs_id %in% c(frs_notTRI$REGISTRY_ID))
 
 # facilities_salvatore %>% 
 #   filter(!frs_id %in% frs_notTRI$REGISTRY_ID) %>% 
 #   View()
 
-facilities_sf_eh249 <- facilities_eh249 %>% 
-  sf::st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326) %>% 
-  rename(loc_name = Facility) %>% 
-  clean_names() %>% 
-  select(any_of(keepcols)) 
 
 
 facilities_sf_salvatore <- facilities_salvatore %>% 
@@ -273,11 +268,11 @@ production_sf <- production %>%
 # 2. JOIN TOGETHER ####
 ################################################################################
 
-all_ppps_eh249 <- bind_rows(lst(epastewardship_county_sf, 
-                                fire_sf, airports_sf,
-                                fed_agencies_sf, superfund_sf,
-                                facilities_sf_eh249, spills_sf, 
-                                production_sf), .id = "dataset") 
+# all_ppps_eh249 <- bind_rows(lst(epastewardship_county_sf, 
+#                                 fire_sf, airports_sf,
+#                                 fed_agencies_sf, superfund_sf,
+#                                 facilities_sf_eh249, spills_sf, 
+#                                 production_sf), .id = "dataset") 
 
 
 all_ppps_salvatore <- bind_rows(lst(epastewardship_county_sf, 
@@ -290,6 +285,27 @@ all_ppps_salvatore <- bind_rows(lst(epastewardship_county_sf,
 
 
 #save as RData file so it can be opened in 1c
-save(all_ppps_eh249, all_ppps_salvatore, 
+save(all_ppps_salvatore, 
      file = "data/processed/all_ppps_1a_output.RData")
 
+# save(all_ppps_eh249, all_ppps_salvatore, 
+#      file = "data/processed/all_ppps_1a_output.RData")
+
+
+
+
+################################################################################
+# GARBAGE <3 ####
+################################################################################
+
+facilities_eh249 <- facilities %>% 
+  mutate(frs_id = str_extract(`ECHO Facility Report`, "(?<=fid=)\\d*")) %>% 
+  filter(!Industry %in% c("Airports", "Fire Training", "National Defense")) %>% 
+  filter(!is.na(Latitude)) %>% 
+  filter(TRI_FLAG == "N")
+
+facilities_sf_eh249 <- facilities_eh249 %>%
+  sf::st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326) %>%
+  rename(loc_name = Facility) %>%
+  clean_names() %>%
+  select(any_of(keepcols))
