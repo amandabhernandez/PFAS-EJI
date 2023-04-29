@@ -10,9 +10,13 @@
 
 source("scripts/0 - setup.R")
 
-load("data/processed/all_ppps_w_count.RData")
-load("data/processed/all_ppps_WOspatial_1c_output.RData")
-load("data/processed/newEJI_wpfasrank_1e_output.RData")
+#these are old
+# load("data/processed/all_ppps_w_count.RData")
+# load("data/processed/all_ppps_WOspatial_1c_output.RData")
+# load("data/processed/newEJI_wpfasrank_1e_output.RData")
+
+load("data/processed/all_ppps_WOspatial_1c_output_2023-04-04.RData")
+load("data/processed/newEJI_wpfasrank_1e_output_2023-04-04.RData")
 
 ################################################################################
 # X. DENSITY PLOTS  ####
@@ -233,15 +237,193 @@ mod1 <- glm(hasPFAS ~ RPL_EJI, data = pfas_mod_data, family = binomial())
 broom::tidy(mod1, exponentiate = TRUE)
 
 
-mod2 <- glm(hasPFAS ~ RPL_EBM + RPL_SVM + RPL_HVM, data = pfas_mod_data, family = binomial())
+mod2_RPL <- glm(hasPFAS ~ RPL_EBM + RPL_SVM + RPL_HVM, data = pfas_mod_data, family = binomial())
 
-broom::tidy(mod2, exponentiate = TRUE)
+broom::tidy(mod2_RPL, exponentiate = TRUE)
+broom::glance(mod2_RPL)
 
 
 mod3 <- glm(hasPFAS ~ SPL_EBM + SPL_SVM + F_HVM, data = pfas_mod_data, family = binomial())
 
 broom::tidy(mod3, exponentiate = TRUE)
+broom::glance(mod3)
+
 gtsummary::tbl_regression(mod3, exponentiate = TRUE)
+
+
+mod_svm <- glm(hasPFAS ~ EP_MINRTY + EP_POV200 + EP_NOHSDP + EP_UNEMP + EP_RENTER + EP_HOUBDN +  EP_UNINSUR + 
+                 EP_NOINT + EP_AGE65 + EP_AGE17 + EP_DISABL + EP_LIMENG + EP_MOBILE + EP_GROUPQ + RPL_EBM, 
+               data = pfas_mod_data, family = binomial())
+
+broom::tidy(mod_svm, exponentiate = TRUE)
+
+
+### REVISED MODELING APPROACH ###
+
+
+
+
+# model 1 RPL_SVM
+
+
+pfas_mod_data_format %>% 
+  select(hasPFAS, RPL_SVM) %>% 
+  gtsummary::tbl_uvregression(method = glm,
+                              y = hasPFAS, 
+                              method.args = list(family = binomial),
+                              exponentiate = TRUE)
+
+
+
+# model 2 race + SES + household char + housing type (univariate + multi)
+
+RPL_dom_univ <- pfas_mod_data_format %>% 
+  select(hasPFAS, RPL_SVM_DOM1, RPL_SVM_DOM2, RPL_SVM_DOM3, RPL_SVM_DOM4) %>% 
+  gtsummary::tbl_uvregression(method = glm,
+                              y = hasPFAS, 
+                              method.args = list(family = binomial),
+                              exponentiate = TRUE)
+
+RPL_dom_univ
+
+RPL_dom_multi <-  glm(hasPFAS ~ RPL_SVM_DOM1 + RPL_SVM_DOM2 + 
+                        RPL_SVM_DOM3 + RPL_SVM_DOM4, 
+                      data = pfas_mod_data, family = binomial())
+
+broom::tidy(RPL_dom_multi, exponentiate = TRUE)
+
+
+
+
+
+# model 3 univariate + multivariate
+EPL_univ <- pfas_mod_data_format %>%
+  select(hasPFAS,EPL_MINRTY, EPL_POV200, EPL_NOHSDP , EPL_UNEMP , EPL_RENTER , EPL_HOUBDN ,  EPL_UNINSUR ,
+           EPL_NOINT , EPL_AGE65 , EPL_AGE17 , EPL_DISABL , EPL_LIMENG , EPL_MOBILE , EPL_GROUPQ) %>%
+  gtsummary::tbl_uvregression(method = glm,
+                   y = hasPFAS,
+                   method.args = list(family = binomial),
+                   exponentiate = TRUE)
+
+EPL_univ
+
+
+EP_univ <- pfas_mod_data_format %>%
+  select(hasPFAS,EP_MINRTY, EP_POV200, EP_NOHSDP , EP_UNEMP , EP_RENTER , EP_HOUBDN ,  EP_UNINSUR ,
+         EP_NOINT , EP_AGE65 , EP_AGE17 , EP_DISABL , EP_LIMENG , EP_MOBILE , EP_GROUPQ) %>%
+  gtsummary::tbl_uvregression(method = glm,
+                              y = hasPFAS,
+                              method.args = list(family = binomial),
+                              exponentiate = TRUE)
+
+EP_univ
+
+
+# gtsummary::tbl_merge(list(EPL_univ, EP_univ),
+#                      tab_spanner = c("Estimated percent", "Estimated rank"))
+
+
+mod_svm_indiv <- glm(hasPFAS ~ EPL_MINRTY + EPL_POV200 + EPL_NOHSDP + EPL_UNEMP + 
+                       EPL_RENTER + EPL_HOUBDN +  EPL_UNINSUR + 
+                       EPL_NOINT + EPL_AGE65 + EPL_AGE17 + EPL_DISABL + EPL_LIMENG + 
+                       EPL_MOBILE + EPL_GROUPQ, 
+               data = pfas_mod_data, family = binomial())
+
+broom::tidy(mod_svm_indiv)
+
+
+
+# mod_svm <- glm(hasPFAS ~ RPL_SVM, 
+#                    data = pfas_mod_data, family = binomial())
+# 
+# broom::tidy(mod_svm, exponentiate = TRUE)
+# gtsummary::tbl_regression(mod_svm, exponentiate = TRUE)
+
+
+
+
+# model 1 RPL_EBM
+
+
+pfas_mod_data_format %>% 
+  select(hasPFAS, RPL_EBM) %>% 
+  gtsummary::tbl_uvregression(method = glm,
+                              y = hasPFAS, 
+                              method.args = list(family = binomial),
+                              exponentiate = TRUE)
+
+
+# model 2 air pollution + toxic sites + built env + transportation infrastructure + water pollution (univariate + multi)
+
+RPL_EBM_dom_univ <- pfas_mod_data_format %>% 
+  select(hasPFAS, RPL_EBM_DOM1, RPL_EBM_DOM2, RPL_EBM_DOM3, RPL_EBM_DOM4, RPL_EBM_DOM5) %>% 
+  gtsummary::tbl_uvregression(method = glm,
+                              y = hasPFAS, 
+                              method.args = list(family = binomial),
+                              exponentiate = TRUE)
+
+RPL_EBM_dom_univ
+
+RPL_EBM_dom_multi <-  glm(hasPFAS ~ RPL_EBM_DOM1 + RPL_EBM_DOM2 + 
+                            RPL_EBM_DOM3 + RPL_EBM_DOM4 + RPL_EBM_DOM5, 
+                          data = pfas_mod_data, family = binomial())
+
+broom::tidy(RPL_EBM_dom_multi, exponentiate = TRUE)
+
+
+
+# model 3 univariate + multivariate
+EPL_EBM_univ <- pfas_mod_data_format %>%
+  select(hasPFAS, any_of(eji_codebook_revised$variable_name[which(eji_codebook_revised$module == "EBM" & 
+                                                                    str_detect(eji_codebook_revised$variable_name, "EPL_"))])) %>%
+  gtsummary::tbl_uvregression(method = glm,
+                              y = hasPFAS,
+                              method.args = list(family = binomial),
+                              exponentiate = TRUE)
+
+EPL_EBM_univ
+
+
+mod_ebm_indiv <- glm(as.formula(paste0("hasPFAS ~ ", 
+                                       paste0(eji_codebook_revised$variable_name[which(
+                                         eji_codebook_revised$module == "EBM" &
+                                           str_detect(eji_codebook_revised$variable_name, "EPL_")
+                                       )],
+                                       collapse = "+"))), 
+                     data = pfas_mod_data, family = binomial())
+
+broom::tidy(mod_ebm_indiv, exponentiate = TRUE)
+
+
+
+
+
+
+
+
+
+mod_quarts <- glm(hasPFAS ~ EBM_quartile + SVM_quartile, data = pfas_mod_data, family = binomial())
+broom::tidy(mod_quarts, exponentiate = TRUE)
+gtsummary::tbl_regression(mod_quarts, exponentiate = TRUE)
+
+
+
+mod_svm <- glm(hasPFAS ~ SPL_EBM + EP_MINRTY + EP_POV200 +  EP_UNINSUR, 
+               data = pfas_mod_data, family = binomial())
+
+broom::tidy(mod_svm, exponentiate = TRUE)
+
+
+
+mod4 <- glm(hasPFAS ~ SPL_EBM, data = pfas_mod_data, family = binomial())
+
+broom::tidy(mod4, exponentiate = TRUE)
+
+mod_ebm <- glm(hasPFAS ~ E_TRI + E_TSD + E_RMP + 
+                E_ROAD + 
+                 E_AIRPRT + E_IMPWTR + EP_MINRTY, data = pfas_mod_data, family = binomial())
+
+broom::tidy(mod_ebm, exponentiate = TRUE)
 
 # ############################# GARBAGE <3 ######################################
 #
