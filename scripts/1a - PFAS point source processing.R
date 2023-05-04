@@ -148,6 +148,7 @@ naics_salvatore <- naics_salvatore %>%
 
 sum(as.numeric(naics_salvatore$n_facilities))
 #49145
+length(unique(naics_salvatore$naics_code))
 
 facilities <- read_xlsx("data/raw/PFAS Point Source Data/Facilities_in_industries_that_may_be_handling_PFAS_01-03-2022.xlsx",
                         sheet = 2)
@@ -189,6 +190,9 @@ facilities_salvatore <- facilities %>%
 
 length(unique(facilities_salvatore$frs_id))
 
+
+length(unique(table_s1$frs_id))
+
 # table(facilities_salvatore$frs_id %in% c(frs_notTRI$REGISTRY_ID))
 
 # facilities_salvatore %>% 
@@ -203,6 +207,21 @@ facilities_sf_salvatore <- facilities_salvatore %>%
   clean_names() %>% 
   select(any_of(keepcols)) 
 
+table_s1 <- facilities_salvatore %>%
+  mutate(loc_name = paste0(frs_id, "-", Facility)) %>% 
+  filter(loc_name %in% facilities_sf_salvatore$loc_name) %>% 
+  separate_rows(CAA_NAICS, sep = " ") %>% 
+  separate_rows(CWA_NAICS, sep = " ") %>% 
+  separate_rows(RCRA_NAICS, sep = " ") %>% 
+  pivot_longer(names_to = "program", values_to = "naics_code", contains("NAICS")) %>% 
+  filter(naics_code %in% naics_salvatore$naics_code) %>% 
+  left_join(naics_salvatore[, c("naics_code", "industry_title")]) %>% 
+  group_by(naics_code, industry_title) %>% 
+  count() 
+
+save(table_s1, file =  "output/tables/table_s1.RData")
+
+length(unique(table_s1$naics_code))
 
 
 
