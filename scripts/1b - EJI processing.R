@@ -16,7 +16,7 @@ source("0 - setup.R")
 ################################################################################
 
 ### load csv from CDC site
-eji_data_fromCDC <- read_csv("eji/DataRecords.csv") %>% 
+eji_data_fromCDC <- read_csv("data/raw/EJI/DataRecords.csv") %>% 
   filter(!is.na(RPL_EJI))
 
 # table(eji_data_fromCDC$StateAbbr, is.na(eji_data_fromCDC$RPL_EJI), useNA = "ifany")
@@ -63,6 +63,23 @@ for(i in state_list){
 
 write_csv(bind_rows(tidycensus_list_5yr_2019), "output/tidycensus_5yrest_2019.csv")
 
+################################################################################
+# 2b. GET CENSUS TRACT INFO (URBAN/RURAL)  ####
+################################################################################
+
+# urban and rural decenial data doesn't exist at the census tract level, we could
+# aggregate up to the county level, but I think it makes sense to use CDC index
+# 
+# https://www.cdc.gov/nchs/data_access/urban_rural.htm#Data_Files_and_Documentation
+
+nchsur13 <- readxl::read_xlsx("data/raw/NCHSURCodes2013.xlsx")  %>% 
+  clean_names() %>% 
+  select(fips_code, x2013_code) %>% 
+  rename(urb_rur_code = x2013_code) %>% 
+  mutate(fips_code = case_when(nchar(fips_code) == 4 ~ paste0("0", fips_code),
+                               TRUE ~ as.character(fips_code)))
+
+save(nchsur13, file = "data/processed/nchs_urban_rural_classification.RData")
 
 ################################################################################
 # 3. BIND CENSUS TRACT AND EJI SPATIAL DATA  ####
@@ -88,7 +105,7 @@ eji_spatial_tidy <- tidy_tracts %>%
 save(eji_spatial_tidy, tidy_tracts,
      file = "data/processed/eji_spatial_1b_output.RData")
 
-
+#why do I need to make EJI spatial? 
 
 
 # stopifnot()
