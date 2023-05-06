@@ -21,7 +21,7 @@ tmap_mode("view")
 
 st_crs(eji_spatial_tidy)$Name
 st_crs(all_ppps_salvatore)$Name
-st_crs(all_ppps_eh249)$Name
+
 message(st_crs(eji_spatial_tidy)$Name == st_crs(all_ppps_salvatore)$Name)
 message(st_crs(all_ppps_salvatore)$Name == st_crs(all_ppps_eh249)$Name)
 
@@ -36,12 +36,10 @@ eji_census_tracts_transformed <- st_transform(eji_spatial_tidy,
 ppps_salvatore_tract <- all_ppps_salvatore %>% 
   st_join(eji_census_tracts_transformed, join = st_intersects)
 
-ppps_eh249_tract <- all_ppps_eh249 %>% 
-  st_join(eji_census_tracts_transformed, join = st_intersects)
 
 
 #save as RData file so it can be opened in next script 
-save(eji_census_tracts_transformed, ppps_salvatore_tract, ppps_eh249_tract,
+save(eji_census_tracts_transformed, ppps_salvatore_tract,
      file = "data/processed/all_ppps_spatial_1c_output.RData")
 
 # load("data/processed/all_ppps_spatial_1c_output.RData")
