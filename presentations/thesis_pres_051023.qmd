@@ -1,0 +1,486 @@
+---
+format: 
+  revealjs:
+      logo: images/hsph_logo.png
+      footer: "A.Hernandez"
+      theme: [simple, custom_DkBlue2.scss]
+      echo: false
+      slide-number: true
+      revealjs-plugins:
+        - confetti
+        - pointer
+execute-dir: project
+execute:
+  freeze: auto 
+---
+
+```{r}
+#| label: load-packages
+#| include: false
+
+library(pacman)
+p_load(tidyverse)
+
+```
+
+#  {background-image="images/background4.png" background-size="100% auto" background-opacity=".25"}
+
+::: blue-title
+Exposures to per- and polyfluoroalkyl substances in environmentally overburdened communities
+:::
+
+<br>
+
+Amanda B. Hernandez
+
+<hr>
+
+May 10, 2023
+
+
+## What are PFAS? {.smallish}
+
+<br>
+
+::: {.column width="65%"}
+Per- and polyfluoroalkyl substances (PFAS) are a class of 10,000+ synthetic compounds commonly used in manufacturing and consumer products.
+
+Some PFAS have also been used in firefighting foams, resulting in contamination at military sites, airports, and fire-training facilities.^[Barzen-Hanson et al. 2017]
+
+-   Similar properties:
+
+    -   persistence
+    -   bioaccumulative
+    -   water-soluble
+    -   potential for toxicity
+:::
+
+::: {.column width="35%"}
+![](images/pfas_sources.png){fig-align="center"}
+:::
+
+
+## What are PFAS? {.smallish}
+
+<br>
+
+-   Consumption of PFAS contaminated drinking water is associated with higher blood levels of PFAS^[Post et al. 2021, Hu et al. 2019, Seals et al. 2011, Vestergren and Cousins 2009]
+
+-   Elevated levels of PFAS has been associated with thyroid disease, cancer, high cholesterol, obesity, effects on immune function, etc.^[ATSDR PFAS Toxicological Profile]
+
+::: fragment
+-   Proximity to PFAS contamination sites is associated with detections of PFAS in drinking water^[Zhang et al. 2016, Hu et al. 2016, Blum et al. 2015]
+
+:::
+
+![](images/pfas_intervention_flow1.png){fig-align="center"}
+
+## What are PFAS? {.smallish}
+
+<br>
+
+-   Consumption of PFAS contaminated drinking water is associated with higher blood levels of PFAS^[Post et al. 2021, Hu et al. 2019, Seals et al. 2011, Vestergren and Cousins 2009]
+
+-   Elevated levels of PFAS has been associated with thyroid disease, cancer, high cholesterol, obesity, effects on immune function, etc.^[ATSDR PFAS Toxicological Profile]
+
+::: spacing
+-   Proximity to PFAS contamination sites is associated with detections of PFAS in drinking water^[Zhang et al. 2016, Hu et al. 2016, Blum et al. 2015]
+:::
+
+![](images/pfas_intervention_flow2.png){fig-align="center"}
+
+
+<!-- ## Background {.smaller}
+
+<br>
+
+::: smallishish
+::: columns
+::: {.column width="45%"}
+PFAS are ubiquitous in the environment, but the **scope of contamination in the US is still broadly unknown**
+
+-   It is estimated that at least 200 million people have PFAS in their drinking water, but drinking water monitoring data are extremely limited and likely underestimate the extent of PFAS contamination ^[Hu et al. 2016, Andrews et al. 2020, Pelch et al. 2022]
+:::
+
+::: {.column width="5%"}
+<br>
+:::
+
+::: fragment
+::: {.column width="50%"}
+Distributive and procedural environmental injustice: ^[Bullard 2008, Wilson 2012, Balazs et al. 2014, Gee et al. 2004, Mohai et al. 2009, Morello-Frosch et al. 2011]
+
+-   Marginalized communities have historically faced a greater cumulative burden of social and environmental stressors
+
+-   Low-income/EJ communities are under-resourced, likely disproportionately impacted due to:
+
+    -   Historic racial discrimination in housing and occupational sectors
+
+    -   Inequitable siting of siting of polluting facilities
+
+    -   Inequitable enforcement of environmental regulations that concentrate point sources of pollution
+:::
+:::
+:::
+:::
+-->
+
+
+## Distributive and procedural environmental injustice {.smallish}
+
+<br>
+
+
+-   Marginalized communities have historically faced a greater cumulative burden of social and environmental stressors^[Bullard 2008, Wilson 2012, Balazs et al. 2014]
+
+-   Low-income/EJ communities are under-resourced, likely disproportionately impacted due to:^[Gee et al. 2004, Mohai et al. 2009, Morello-Frosch et al. 2011]
+
+    -   Historic racial discrimination in housing and occupational sectors
+
+    -   Inequitable siting of siting of polluting facilities
+
+    -   Inequitable enforcement of environmental regulations that concentrate point sources of pollution
+    
+    
+-   Emerging research suggests that low-income communities and communities of color may live in closer proximity to PFAS point sources^[Liddie et al. 2023, Desikan 2019]
+
+
+## Study Objective {.smallish}
+
+<br>
+
+::: blue-subtitle
+Assess the relationship between proximity to PFAS point sources, both presumptive and known, and environmentally overburdened and socially vulnerable communities
+
+:::
+
+## Methods {.smallish}
+
+::: columns
+::: {.column width="40%"}
+CDC/ATSDR's Environmental Justice Index is a multi-dimensional index that allowing us to assess the effect of cumulative social and environmental burdens^[https://atsdr.cdc.gov/placeandhealth/eji/]  
+:::
+
+::: {.column width="60%"}
+<!-- ![](images/eji_codebook.png){fig-align="center" width="65%"} -->
+
+```{r}
+
+p_load(collapsibleTree) 
+
+# input data must be a nested data frame:
+eji_tree_diag <- read_csv("../data/raw/EJI/indicators_table.csv")
+
+# Represent this tree:
+p <- collapsibleTree(eji_tree_diag, c("Module", "Theme", "Variable"), 
+                     height = 600, 
+                     width = 850, 
+                     zoomable = FALSE,
+                     root = "Combined EB + SV", collapsed = FALSE, 
+                     fill = c(
+                       # The root
+                       "#3b4994",
+                       # Unique regions
+                       "#5ac8c8", 
+                       "#be64ac", 
+                       rep("#ace4e4", 4),
+                       rep("#a5add3", 5),
+                       rep("#b0d5df", length(unique(eji_tree_diag$Variable[which(eji_tree_diag$Module == "Social Vulnerability")]))), 
+                       rep("#dfb0d6",  length(unique(eji_tree_diag$Variable[which(eji_tree_diag$Module == "Environmental Burden")])))
+                       
+                     ))
+
+p 
+```
+:::
+:::
+
+##  {background-image="images/PFAS_perc_map_pres2023-05-09.png" background-size="90% auto"}
+
+##  {background-image="images/bivar_map_winset2023-05-07 3.png" background-size="90% auto"}
+
+::: blue-subtitle
+Distribution of % area within 1-mile of PFAS source + Combined EB & SV
+:::
+
+::: aside
+Census-tract level bivariate map showing the geographic distribution of percent area of a census tract that falls within 1-mile of a PFAS source and the combined EB and SV percentile rank
+:::
+
+##  {.smallish}
+
+::: blue-subtitle
+
+Census tracts in the highest quartiles of EB and SV have a greater median percent area within 1-mile of a PFAS source
+
+:::
+
+![](images/sina_boxplot_quartiles_plotgrid_labs.png){fig-align="center" height="100%"}
+
+##  {.smallish}
+
+::: columns
+
+::: {.column width="25%"}
+
+::: blue-subtitle
+
+Census tracts in the highest quartiles of EB and SV are more likely to fall within a 1-mile range of a PFAS source
+
+:::
+
+
+:::
+
+::: {.column width="5%"}
+<br>
+:::
+
+
+::: {.column width="70%"}
+
+![](images/glm_forest.png){fig-align="center" width="120%"}
+
+:::
+
+:::
+
+
+## {.smallish}
+
+::: columns
+
+::: {.column width="15%"}
+
+::: blue-subtitle
+
+EB + SV themes are driving the association
+:::
+
+
+:::
+
+::: {.column width="85%"}
+
+![](images/glm_themes_forest.png){fig-align="center" height="120%"}
+
+:::
+
+:::
+
+
+
+
+
+
+## Summary of findings {.smallish}
+
+<br> 
+
+
+
+-   22% of all census tracts in the contiguous U.S. contain a presumptive or known source of PFAS
+
+::: incremental
+
+-   63% of census tracts fall within a 1-mile of a PFAS source
+
+-   Census tracts that face the greatest burden of environmental exposures and social vulnerability:
+
+    -   Have a greater median percent area within 1-mile of a PFAS source (Q4 = 67.3% vs Q1 = 0%)
+    -   Are more likely to fall within a 1-mile range of a PFAS source (OR: 7.47, 95% CI: 7.11-7.86)
+    
+-   This was consistent in both our model assessing combined SV and EB, and the adjusted effects of the SV and EB modules separately
+
+
+:::
+
+
+## EB + SES Themes {.smallish}
+
+<br> 
+
+-   We observed a higher median percent area within 1-mile of a PFAS source in the highest quartiles of all EB themes except Built Environment, which could indicate differences in the impact of EB in urban vs rural tracts  
+
+::: incremental
+
+-   We observed higher median percent area within 1-mile of a PFAS source in the highest quartiles of the race/ethnicity theme and the SES theme
+
+    -   Study by the Union of Concerned Scientists similarly reported a higher number of low-income households and people of color living within 5 miles of a PFAS source^[Desikan 2019]
+    
+    -   Liddie et al.^[Liddie et al. 2023 (forthcoming)] found that communities with higher % of Hispanic/Latino and non-Hispanic Black residents had a higher likelihood of sharing a watershed with a PFAS source and a higher likelihood of being served by a PWS with detectable PFAS concentrations
+    
+:::
+    
+
+## Strengths + Limitations {.smallish}
+
+<br> 
+
+::: columns
+
+
+
+::: {.column width="45%"}
+
+Limitations
+
+-   Precautionary/presumptive PFAS model^[Salvatore et al. 2022, Zhang et al. 2016, Hu et al. 2016]
+
+-   All potential PFAS point sources weighted equally
+
+    -   Reliable PFAS emissions data do not exist
+
+
+:::
+
+
+
+::: {.column width="5%"}
+<br>
+:::
+
+
+::: fragment
+
+::: {.column width="50%"}
+
+Strengths
+
+-   We conducted our analysis at the census tract level and observed similar patterns as those reported in other studies
+
+-   Apply a multidimensional index to assess the effect of cumulative social and environmental burdens, both individually and in the aggregate
+
+:::
+
+:::
+
+:::
+
+## Conclusion {.smallish}
+
+<br>
+
+-   Drinking water monitoring is expanding, but will take time 
+
+-   Other studies have identified characteristics of Public Water Systems that make them more vulnerable to PFAS contamination (primary source water type, system size, and technical, financial, and managerial capacity)
+
+-   This study highlights disparities in proximity to sources of PFAS, which may result in drinking water contamination
+
+    -   These disparities should be considered in future PFAS monitoring decisions, in conjunction with other factors that influence system vulnerability
+
+## Acknowledgements {.smallish}
+
+<br>
+
+::: smallish
+::: columns
+
+::: {.column width="45%"}
+
+-   Gary Adamkiewicz
+-   Jahred Liddie
+-   Dean Marengi
+-   EH 249 teaching team (Peter James, Grete Wilt, Cindy Hu)
+
+:::
+
+::: {.column width="5%"}
+<br>
+:::
+
+
+::: {.column width="50%"}
+
+-   EH 508 teaching team
+-   Isabel Holland
+-   Abby Zhong
+-   EH 508 Cohort
+
+:::
+
+:::
+:::
+
+
+
+#  {background-image="images/background4.png" background-size="100% auto" background-opacity=".25"}
+
+::: blue-title
+Exposures to per- and polyfluoroalkyl substances in environmentally overburdened communities
+:::
+
+<br>
+
+Amanda B. Hernandez
+
+<hr>
+
+May 10, 2023
+
+
+
+## Extra Slides
+
+
+## Table 1
+
+![](images/table1.png){fig-align="center" width="120%"}
+
+
+
+## Table 2
+
+![](images/table2.png){fig-align="center" width="120%"}
+
+
+## Table 3
+
+![](images/table3.png){fig-align="center" width="120%"}
+
+## {.smallish}
+
+::: columns
+
+::: {.column width="25%"}
+
+::: blue-subtitle
+
+There are differences in EB/SV patterns for urban vs rural census tracts
+
+:::
+
+
+:::
+
+::: {.column width="5%"}
+<br>
+:::
+
+
+::: {.column width="70%"}
+
+![](images/glm_forest_RU.png){fig-align="center" width="120%"}
+
+:::
+
+:::
+
+## Urban vs Rural {.smallish}
+
+::: fragment
+
+-   Liddie et al. found an inverse association between both sharing a watershed with a PFAS source and having detectable PFAS and % of residents living below the federal poverty line, with mixed results when stratifying by urban/rural counties
+
+    -   Rural counties with higher % of residents below the federal poverty line were more likely to share a watershed with a PFAS source and have detectable PFAS
+        
+:::
+
+::: fragment
+
+-   We found that urban census tracts with higher SV had a higher odds of having a PFAS source but did not observe the same association in rural census tracts
+        
+    -   This difference could be due to varying metrics used to assess poverty and socioeconomic status. 
+    
+:::
+    
