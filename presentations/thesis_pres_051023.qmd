@@ -137,12 +137,15 @@ Distributive and procedural environmental injustice: ^[Bullard 2008, Wilson 2012
 
     -   Historic racial discrimination in housing and occupational sectors
 
-    -   Inequitable siting of siting of polluting facilities
+    -   Inequitable siting of polluting facilities
 
     -   Inequitable enforcement of environmental regulations that concentrate point sources of pollution
     
-    
+::: fragment
+
 -   Emerging research suggests that low-income communities and communities of color may live in closer proximity to PFAS point sources^[Liddie et al. 2023, Desikan 2019]
+
+:::
 
 
 ## Study Objective {.smallish}
